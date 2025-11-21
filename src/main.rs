@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use bollard::{Docker, container::ListContainersOptions};
+use color_eyre::eyre::Result;
 use crossterm::{
     event::{self, Event, KeyCode, KeyEventKind},
     execute,
@@ -88,7 +89,7 @@ impl App {
     }
 }
 
-async fn fetch_containers() -> Result<Vec<Container>, Box<dyn std::error::Error + Send + Sync>> {
+async fn fetch_containers() -> Result<Vec<Container>> {
     let docker = Docker::connect_with_socket_defaults()?;
     let options = Some(ListContainersOptions::<String> {
         all: true,
@@ -113,7 +114,7 @@ async fn fetch_containers() -> Result<Vec<Container>, Box<dyn std::error::Error 
     Ok(parsed_containers)
 }
 
-async fn run_app() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+async fn run_app() -> Result<()> {
     enable_raw_mode()?;
     let mut stdout = std::io::stdout();
     execute!(stdout, EnterAlternateScreen)?;
@@ -201,6 +202,7 @@ async fn run_app() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+async fn main() -> Result<()> {
+    color_eyre::install()?;
     run_app().await
 }
