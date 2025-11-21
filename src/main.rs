@@ -7,8 +7,10 @@ use ratatui::{
     prelude::*,
     widgets::{Block, Borders, Paragraph},
 };
-use std::io::{self, stdout};
-use std::time::Duration;
+use std::{
+    io::{self, stdout},
+    time::Duration,
+};
 
 fn main() -> io::Result<()> {
     enable_raw_mode()?;

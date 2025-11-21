@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+**IMPORTANT**: Always re-read this entire file after making any changes to it to ensure you understand and follow all current standards and workflows.
+
 ## Project Overview
 
 This is a Docker TUI (Terminal User Interface) application written in Rust. The repository is currently in its initial stage with only a README.md file present.
@@ -20,8 +22,19 @@ This project uses Stacked Git (stg) for patch management. For every command or t
 
 1. **Start with a new patch**: `stg new <patch-name>` - Create a new, empty patch at the top of the stack
 2. **Make your changes**: Use normal git commands to add/modify files
-3. **Refresh the patch**: `stg refresh` - Include all changes in the current patch
-4. **Add description**: `stg edit` - Add an appropriate description to the patch
+3. **Format code**: Always run `cargo fmt` after writing code
+4. **Check code**: Always run `cargo check` and `cargo build` to ensure no warnings or errors
+5. **Refresh the patch**: `stg refresh` - Include all changes in the current patch
+6. **Add description**: `stg edit` - Add an appropriate description to the patch
+
+## Code Quality Standards
+
+- Always run `cargo fmt` after writing code
+- Always run `cargo check` and `cargo build` when making changes, ensuring no warnings or errors
+- Always put a period (".") at the end of one-line commit messages and patch messages
+- When writing `use` statements, always group imports from the same crate using common prefixes. For example:
+  - Instead of: `use std::io::{self, stdout};\nuse std::time::Duration;`
+  - Use: `use std::{io::{self, stdout}, time::Duration};`
 
 ## Common Commands
 
