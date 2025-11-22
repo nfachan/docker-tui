@@ -110,9 +110,6 @@ async fn fetch_containers() -> Result<Vec<Container>> {
 }
 
 fn run_app() -> Result<()> {
-    // Create tokio Runtime
-    let rt = Runtime::new()?;
-
     enable_raw_mode()?;
     let mut stdout = std::io::stdout();
     execute!(stdout, EnterAlternateScreen)?;
@@ -121,14 +118,14 @@ fn run_app() -> Result<()> {
 
     let mut app = App::default();
 
-    // Create channels for communication
-    let (tx, mut rx) = mpsc::unbounded_channel::<AppEvent>();
+    let (tx, mut rx) = mpsc::unbounded_channel();
 
-    // Spawn Docker polling task on runtime
-    let docker_tx = tx.clone();
+    // Create tokio Runtime, and put a task on it that periodically gets containers.
+    let rt = Runtime::new()?;
+    let tx_clone = tx.clone();
     rt.spawn(async move {
         loop {
-            let _ = docker_tx.send(AppEvent::ContainerUpdate(fetch_containers().await));
+            let _ = tx_clone.send(AppEvent::ContainerUpdate(fetch_containers().await));
             time::sleep(Duration::from_secs(1)).await;
         }
     });
