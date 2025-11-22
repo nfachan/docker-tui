@@ -22,7 +22,7 @@ struct Container {
 #[derive(Debug)]
 enum AppEvent {
     KeyPress(KeyCode),
-    ContainerUpdate(Vec<Container>),
+    ContainerUpdate(Result<Vec<Container>>),
 }
 
 #[derive(Default)]
@@ -129,15 +129,9 @@ fn run_app() -> Result<()> {
     rt.spawn(async move {
         let mut interval = interval(Duration::from_secs(2));
         loop {
+            let res = fetch_containers().await;
+            let _ = docker_tx.send(AppEvent::ContainerUpdate(res));
             interval.tick().await;
-            match fetch_containers().await {
-                Ok(containers) => {
-                    let _ = docker_tx.send(AppEvent::ContainerUpdate(containers));
-                }
-                Err(e) => {
-                    eprintln!("Error fetching containers: {}", e);
-                }
-            }
         }
     });
 
@@ -167,6 +161,7 @@ fn run_app() -> Result<()> {
                     app.handle_key_event(key_code);
                 }
                 AppEvent::ContainerUpdate(new_containers) => {
+                    let new_containers = new_containers?;
                     let current_selection = app.list_state.selected();
                     app.containers = new_containers;
 
