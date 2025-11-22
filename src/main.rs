@@ -25,6 +25,7 @@ enum AppEvent {
     ContainerUpdate(Vec<Container>),
 }
 
+#[derive(Default)]
 struct App {
     should_quit: bool,
     containers: Vec<Container>,
@@ -32,18 +33,6 @@ struct App {
 }
 
 impl App {
-    fn new(containers: Vec<Container>) -> Self {
-        let mut list_state = ListState::default();
-        if !containers.is_empty() {
-            list_state.select(Some(0));
-        }
-        Self {
-            should_quit: false,
-            containers,
-            list_state,
-        }
-    }
-
     fn handle_key_event(&mut self, key: KeyCode) {
         match key {
             KeyCode::Char('q') | KeyCode::Esc => {
@@ -124,17 +113,13 @@ fn run_app() -> Result<()> {
     // Create tokio Runtime
     let rt = Runtime::new()?;
 
-    // Initial fetch using the runtime
-    let initial_containers =
-        rt.block_on(async { fetch_containers().await.unwrap_or_else(|_| Vec::new()) });
-
     enable_raw_mode()?;
     let mut stdout = std::io::stdout();
     execute!(stdout, EnterAlternateScreen)?;
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
-    let mut app = App::new(initial_containers);
+    let mut app = App::default();
 
     // Create channels for communication
     let (tx, mut rx) = mpsc::unbounded_channel::<AppEvent>();
