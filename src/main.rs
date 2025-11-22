@@ -11,12 +11,18 @@ use ratatui::{
     prelude::*,
     widgets::{Block, Borders, List, ListItem, ListState},
 };
-use tokio::{sync::mpsc, time::interval};
+use tokio::{runtime::Runtime, sync::mpsc, time::interval};
 
 #[derive(Debug, Clone)]
 struct Container {
     name: String,
     status: String,
+}
+
+#[derive(Debug)]
+enum AppEvent {
+    KeyPress(KeyCode),
+    ContainerUpdate(Vec<Container>),
 }
 
 struct App {
@@ -114,31 +120,51 @@ async fn fetch_containers() -> Result<Vec<Container>> {
     Ok(parsed_containers)
 }
 
-async fn run_app() -> Result<()> {
+fn run_app() -> Result<()> {
+    // Create tokio Runtime
+    let rt = Runtime::new()?;
+
+    // Initial fetch using the runtime
+    let initial_containers =
+        rt.block_on(async { fetch_containers().await.unwrap_or_else(|_| Vec::new()) });
+
     enable_raw_mode()?;
     let mut stdout = std::io::stdout();
     execute!(stdout, EnterAlternateScreen)?;
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
-    // Initial fetch
-    let initial_containers = fetch_containers().await.unwrap_or_else(|_| Vec::new());
     let mut app = App::new(initial_containers);
 
     // Create channels for communication
-    let (tx, mut rx) = mpsc::unbounded_channel::<Vec<Container>>();
+    let (tx, mut rx) = mpsc::unbounded_channel::<AppEvent>();
 
-    // Spawn background task to fetch containers periodically
-    tokio::spawn(async move {
+    // Spawn Docker polling task on runtime
+    let docker_tx = tx.clone();
+    rt.spawn(async move {
         let mut interval = interval(Duration::from_secs(2));
         loop {
             interval.tick().await;
             match fetch_containers().await {
                 Ok(containers) => {
-                    let _ = tx.send(containers);
+                    let _ = docker_tx.send(AppEvent::ContainerUpdate(containers));
                 }
                 Err(e) => {
                     eprintln!("Error fetching containers: {}", e);
+                }
+            }
+        }
+    });
+
+    // Spawn keyboard event thread
+    let keyboard_tx = tx.clone();
+    std::thread::spawn(move || {
+        loop {
+            if let Ok(true) = event::poll(Duration::from_millis(50)) {
+                if let Ok(Event::Key(key)) = event::read() {
+                    if key.kind == KeyEventKind::Press {
+                        let _ = keyboard_tx.send(AppEvent::KeyPress(key.code));
+                    }
                 }
             }
         }
@@ -149,36 +175,24 @@ async fn run_app() -> Result<()> {
     let tick_rate = Duration::from_millis(50);
 
     loop {
-        let timeout = tick_rate.saturating_sub(last_tick.elapsed());
-
-        tokio::select! {
-            // Handle terminal events
-            result = tokio::time::timeout(timeout, async {
-                if event::poll(Duration::from_millis(0))? {
-                    event::read()
-                } else {
-                    Ok(Event::FocusGained)  // Dummy event
+        // Handle events from channel
+        while let Ok(event) = rx.try_recv() {
+            match event {
+                AppEvent::KeyPress(key_code) => {
+                    app.handle_key_event(key_code);
                 }
-            }) => {
-                if let Ok(Ok(event)) = result {
-                    if let Event::Key(key) = event {
-                        if key.kind == KeyEventKind::Press {
-                            app.handle_key_event(key.code);
-                        }
+                AppEvent::ContainerUpdate(new_containers) => {
+                    let current_selection = app.list_state.selected();
+                    app.containers = new_containers;
+
+                    // Maintain selection if possible, otherwise select first item
+                    if app.containers.is_empty() {
+                        app.list_state.select(None);
+                    } else if current_selection.is_none()
+                        || current_selection.unwrap() >= app.containers.len()
+                    {
+                        app.list_state.select(Some(0));
                     }
-                }
-            }
-
-            // Handle container updates
-            Some(new_containers) = rx.recv() => {
-                let current_selection = app.list_state.selected();
-                app.containers = new_containers;
-
-                // Maintain selection if possible, otherwise select first item
-                if app.containers.is_empty() {
-                    app.list_state.select(None);
-                } else if current_selection.is_none() || current_selection.unwrap() >= app.containers.len() {
-                    app.list_state.select(Some(0));
                 }
             }
         }
@@ -191,6 +205,8 @@ async fn run_app() -> Result<()> {
         if app.should_quit {
             break;
         }
+
+        std::thread::sleep(Duration::from_millis(10));
     }
 
     // Cleanup
@@ -201,8 +217,7 @@ async fn run_app() -> Result<()> {
     Ok(())
 }
 
-#[tokio::main]
-async fn main() -> Result<()> {
+fn main() -> Result<()> {
     color_eyre::install()?;
-    run_app().await
+    run_app()
 }
