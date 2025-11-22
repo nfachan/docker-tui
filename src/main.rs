@@ -128,8 +128,7 @@ fn run_app() -> Result<()> {
     let docker_tx = tx.clone();
     rt.spawn(async move {
         loop {
-            let res = fetch_containers().await;
-            let _ = docker_tx.send(AppEvent::ContainerUpdate(res));
+            let _ = docker_tx.send(AppEvent::ContainerUpdate(fetch_containers().await));
             time::sleep(Duration::from_secs(1)).await;
         }
     });
