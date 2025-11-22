@@ -11,7 +11,7 @@ use ratatui::{
     prelude::*,
     widgets::{Block, Borders, List, ListItem, ListState},
 };
-use tokio::{runtime::Runtime, sync::mpsc, time::interval};
+use tokio::{runtime::Runtime, sync::mpsc, time};
 
 #[derive(Debug, Clone)]
 struct Container {
@@ -127,11 +127,10 @@ fn run_app() -> Result<()> {
     // Spawn Docker polling task on runtime
     let docker_tx = tx.clone();
     rt.spawn(async move {
-        let mut interval = interval(Duration::from_secs(2));
         loop {
             let res = fetch_containers().await;
             let _ = docker_tx.send(AppEvent::ContainerUpdate(res));
-            interval.tick().await;
+            time::sleep(Duration::from_secs(1)).await;
         }
     });
 
