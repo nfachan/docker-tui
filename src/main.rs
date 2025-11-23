@@ -21,7 +21,7 @@ struct Container {
 
 #[derive(Debug)]
 enum AppEvent {
-    KeyPress(KeyCode),
+    CrosstermEvent(Event),
     ContainerUpdate(Result<Vec<Container>>),
 }
 
@@ -134,10 +134,9 @@ fn run_app() -> Result<()> {
     let tx_clone = tx.clone();
     std::thread::spawn(move || {
         loop {
-            if let Ok(Event::Key(key)) = event::read()
-                && key.kind == KeyEventKind::Press {
-                    let _ = tx_clone.send(AppEvent::KeyPress(key.code));
-                }
+            if let Ok(event) = event::read() {
+                let _ = tx_clone.send(AppEvent::CrosstermEvent(event));
+            }
         }
     });
 
@@ -145,9 +144,10 @@ fn run_app() -> Result<()> {
     terminal.draw(|frame| app.render(frame))?;
     while let Some(event) = rx.blocking_recv() {
         match event {
-            AppEvent::KeyPress(key_code) => {
-                app.handle_key_event(key_code);
+            AppEvent::CrosstermEvent(Event::Key(key)) if key.kind == KeyEventKind::Press => {
+                app.handle_key_event(key.code);
             }
+            AppEvent::CrosstermEvent(_) => {}
             AppEvent::ContainerUpdate(new_containers) => {
                 let new_containers = new_containers?;
                 let current_selection = app.list_state.selected();
