@@ -109,12 +109,13 @@ async fn fetch_containers() -> Result<Vec<Container>> {
     Ok(parsed_containers)
 }
 
-fn crossterm_event_main(sender: mpsc::UnboundedSender<AppEvent>) {
-    loop {
-        let _ = sender.send(AppEvent::CrosstermEvent(
+fn crossterm_event_main(sender: mpsc::Sender<AppEvent>) {
+    while sender
+        .blocking_send(AppEvent::CrosstermEvent(
             event::read().map_err(|err| err.into()),
-        ));
-    }
+        ))
+        .is_ok()
+    {}
 }
 
 fn run_app() -> Result<()> {
@@ -126,14 +127,18 @@ fn run_app() -> Result<()> {
 
     let mut app = App::default();
 
-    let (sender, mut receiver) = mpsc::unbounded_channel();
+    const CHANNEL_SLOTS: usize = 10;
+    let (sender, mut receiver) = mpsc::channel(CHANNEL_SLOTS);
 
     // Create tokio Runtime, and put a task on it that periodically gets containers.
     let runtime = Runtime::new()?;
     let sender_clone = sender.clone();
     runtime.spawn(async move {
-        loop {
-            let _ = sender_clone.send(AppEvent::ContainerUpdate(fetch_containers().await));
+        while sender_clone
+            .send(AppEvent::ContainerUpdate(fetch_containers().await))
+            .await
+            .is_ok()
+        {
             time::sleep(Duration::from_secs(1)).await;
         }
     });
