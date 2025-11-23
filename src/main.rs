@@ -21,7 +21,7 @@ struct Container {
 
 #[derive(Debug)]
 enum AppEvent {
-    CrosstermEvent(Event),
+    CrosstermEvent(Result<Event>),
     ContainerUpdate(Result<Vec<Container>>),
 }
 
@@ -134,9 +134,9 @@ fn run_app() -> Result<()> {
     let tx_clone = tx.clone();
     std::thread::spawn(move || {
         loop {
-            if let Ok(event) = event::read() {
-                let _ = tx_clone.send(AppEvent::CrosstermEvent(event));
-            }
+            let _ = tx_clone.send(AppEvent::CrosstermEvent(
+                event::read().map_err(|err| err.into()),
+            ));
         }
     });
 
@@ -144,10 +144,10 @@ fn run_app() -> Result<()> {
     terminal.draw(|frame| app.render(frame))?;
     while let Some(event) = rx.blocking_recv() {
         match event {
-            AppEvent::CrosstermEvent(Event::Key(key)) if key.kind == KeyEventKind::Press => {
+            AppEvent::CrosstermEvent(Ok(Event::Key(key))) if key.kind == KeyEventKind::Press => {
                 app.handle_key_event(key.code);
             }
-            AppEvent::CrosstermEvent(_) => {}
+            AppEvent::CrosstermEvent(Ok(_)) => {}
             AppEvent::ContainerUpdate(Ok(containers)) => {
                 let current_selection = app.list_state.selected();
                 app.containers = containers;
@@ -161,8 +161,8 @@ fn run_app() -> Result<()> {
                     app.list_state.select(Some(0));
                 }
             }
-            AppEvent::ContainerUpdate(Err(err)) => {
-                return Err(err)
+            AppEvent::CrosstermEvent(Err(err)) | AppEvent::ContainerUpdate(Err(err)) => {
+                return Err(err);
             }
         }
 
