@@ -86,7 +86,7 @@ fn run_app() -> Result<()> {
     std::thread::spawn(move || docker_tui::docker_event_main(sender_clone));
 
     // Spawn input event thread.
-    std::thread::spawn(move || docker_tui::input_event_main(sender));
+    std::thread::spawn(move || docker_tui::input::main(sender));
 
     // Main event loop
     terminal.draw(|frame| app.render(frame))?;

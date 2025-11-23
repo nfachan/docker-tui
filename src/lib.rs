@@ -1,8 +1,10 @@
 use bollard::{Docker, container::ListContainersOptions};
 use color_eyre::eyre::{Report, Result};
-use crossterm::event::{self, Event};
+use crossterm::event::Event;
 use std::time::Duration;
 use tokio::{runtime::Builder, sync::mpsc, task, time};
+
+pub mod input;
 
 #[derive(Debug, Clone)]
 pub struct Container {
@@ -14,13 +16,6 @@ pub struct Container {
 pub enum AppEvent {
     InputEvent(Result<Event>),
     DockerEvent(Result<Vec<Container>>),
-}
-
-pub fn input_event_main(sender: mpsc::Sender<AppEvent>) {
-    while sender
-        .blocking_send(AppEvent::InputEvent(event::read().map_err(Report::from)))
-        .is_ok()
-    {}
 }
 
 async fn fetch_containers() -> Result<Vec<Container>> {
