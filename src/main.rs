@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use bollard::{Docker, container::ListContainersOptions};
-use color_eyre::eyre::Result;
+use color_eyre::eyre::{Report, Result};
 use crossterm::{
     event::{self, Event, KeyCode, KeyEventKind},
     execute,
@@ -21,7 +21,7 @@ struct Container {
 
 #[derive(Debug)]
 enum AppEvent {
-    CrosstermEvent(Result<Event>),
+    InputEvent(Result<Event>),
     ContainerUpdate(Result<Vec<Container>>),
 }
 
@@ -109,11 +109,9 @@ async fn fetch_containers() -> Result<Vec<Container>> {
     Ok(parsed_containers)
 }
 
-fn crossterm_event_main(sender: mpsc::Sender<AppEvent>) {
+fn input_event_main(sender: mpsc::Sender<AppEvent>) {
     while sender
-        .blocking_send(AppEvent::CrosstermEvent(
-            event::read().map_err(|err| err.into()),
-        ))
+        .blocking_send(AppEvent::InputEvent(event::read().map_err(Report::from)))
         .is_ok()
     {}
 }
@@ -144,16 +142,16 @@ fn run_app() -> Result<()> {
     });
 
     // Spawn input event thread.
-    std::thread::spawn(move || crossterm_event_main(sender));
+    std::thread::spawn(move || input_event_main(sender));
 
     // Main event loop
     terminal.draw(|frame| app.render(frame))?;
     while let Some(event) = receiver.blocking_recv() {
         match event {
-            AppEvent::CrosstermEvent(Ok(Event::Key(key))) if key.kind == KeyEventKind::Press => {
+            AppEvent::InputEvent(Ok(Event::Key(key))) if key.kind == KeyEventKind::Press => {
                 app.handle_key_event(key.code);
             }
-            AppEvent::CrosstermEvent(Ok(_)) => {}
+            AppEvent::InputEvent(Ok(_)) => {}
             AppEvent::ContainerUpdate(Ok(containers)) => {
                 let current_selection = app.list_state.selected();
                 app.containers = containers;
@@ -167,7 +165,7 @@ fn run_app() -> Result<()> {
                     app.list_state.select(Some(0));
                 }
             }
-            AppEvent::CrosstermEvent(Err(err)) | AppEvent::ContainerUpdate(Err(err)) => {
+            AppEvent::InputEvent(Err(err)) | AppEvent::ContainerUpdate(Err(err)) => {
                 return Err(err);
             }
         }
