@@ -1,29 +1,15 @@
-use std::time::Duration;
-
-use bollard::{Docker, container::ListContainersOptions};
-use color_eyre::eyre::{Report, Result};
+use color_eyre::eyre::Result;
 use crossterm::{
-    event::{self, Event, KeyCode, KeyEventKind},
+    event::{Event, KeyCode, KeyEventKind},
     execute,
     terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
+use docker_tui::{AppEvent, Container};
 use ratatui::{
     prelude::*,
     widgets::{Block, Borders, List, ListItem, ListState},
 };
-use tokio::{runtime::Builder, sync::mpsc, task, time};
-
-#[derive(Debug, Clone)]
-struct Container {
-    name: String,
-    status: String,
-}
-
-#[derive(Debug)]
-enum AppEvent {
-    InputEvent(Result<Event>),
-    DockerEvent(Result<Vec<Container>>),
-}
+use tokio::sync::mpsc;
 
 #[derive(Default)]
 struct App {
@@ -84,56 +70,6 @@ impl App {
     }
 }
 
-async fn fetch_containers() -> Result<Vec<Container>> {
-    let docker = Docker::connect_with_socket_defaults()?;
-    let options = Some(ListContainersOptions::<String> {
-        all: true,
-        ..Default::default()
-    });
-
-    let container_list = docker.list_containers(options).await?;
-    let parsed_containers: Vec<Container> = container_list
-        .iter()
-        .map(|container| {
-            let name = container
-                .names
-                .as_ref()
-                .and_then(|names| names.first())
-                .map(|n| n.trim_start_matches('/').to_string())
-                .unwrap_or_else(|| "unnamed".to_string());
-            let status = container.status.as_deref().unwrap_or("unknown").to_string();
-            Container { name, status }
-        })
-        .collect();
-
-    Ok(parsed_containers)
-}
-
-fn input_event_main(sender: mpsc::Sender<AppEvent>) {
-    while sender
-        .blocking_send(AppEvent::InputEvent(event::read().map_err(Report::from)))
-        .is_ok()
-    {}
-}
-
-async fn docker_event_main_inner(sender: mpsc::Sender<AppEvent>) {
-    while sender
-        .send(AppEvent::DockerEvent(fetch_containers().await))
-        .await
-        .is_ok()
-    {
-        time::sleep(Duration::from_secs(1)).await;
-    }
-}
-
-fn docker_event_main(sender: mpsc::Sender<AppEvent>) -> Result<()> {
-    Builder::new_current_thread()
-        .enable_all()
-        .build()?
-        .block_on(async move { task::spawn(docker_event_main_inner(sender)).await })
-        .map_err(Report::from)
-}
-
 fn run_app() -> Result<()> {
     enable_raw_mode()?;
     let mut stdout = std::io::stdout();
@@ -147,10 +83,10 @@ fn run_app() -> Result<()> {
     let (sender, mut receiver) = mpsc::channel(CHANNEL_SLOTS);
 
     let sender_clone = sender.clone();
-    std::thread::spawn(move || docker_event_main(sender_clone));
+    std::thread::spawn(move || docker_tui::docker_event_main(sender_clone));
 
     // Spawn input event thread.
-    std::thread::spawn(move || input_event_main(sender));
+    std::thread::spawn(move || docker_tui::input_event_main(sender));
 
     // Main event loop
     terminal.draw(|frame| app.render(frame))?;
