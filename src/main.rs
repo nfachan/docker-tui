@@ -22,7 +22,7 @@ struct Container {
 #[derive(Debug)]
 enum AppEvent {
     InputEvent(Result<Event>),
-    ContainerUpdate(Result<Vec<Container>>),
+    DockerEvent(Result<Vec<Container>>),
 }
 
 #[derive(Default)]
@@ -118,7 +118,7 @@ fn input_event_main(sender: mpsc::Sender<AppEvent>) {
 
 async fn docker_event_main_inner(sender: mpsc::Sender<AppEvent>) {
     while sender
-        .send(AppEvent::ContainerUpdate(fetch_containers().await))
+        .send(AppEvent::DockerEvent(fetch_containers().await))
         .await
         .is_ok()
     {
@@ -160,7 +160,7 @@ fn run_app() -> Result<()> {
                 app.handle_key_event(key.code);
             }
             AppEvent::InputEvent(Ok(_)) => {}
-            AppEvent::ContainerUpdate(Ok(containers)) => {
+            AppEvent::DockerEvent(Ok(containers)) => {
                 let current_selection = app.list_state.selected();
                 app.containers = containers;
 
@@ -173,7 +173,7 @@ fn run_app() -> Result<()> {
                     app.list_state.select(Some(0));
                 }
             }
-            AppEvent::InputEvent(Err(err)) | AppEvent::ContainerUpdate(Err(err)) => {
+            AppEvent::InputEvent(Err(err)) | AppEvent::DockerEvent(Err(err)) => {
                 return Err(err);
             }
         }
