@@ -129,9 +129,9 @@ fn run_app() -> Result<()> {
     let (sender, mut receiver) = mpsc::unbounded_channel();
 
     // Create tokio Runtime, and put a task on it that periodically gets containers.
-    let rt = Runtime::new()?;
+    let runtime = Runtime::new()?;
     let sender_clone = sender.clone();
-    rt.spawn(async move {
+    runtime.spawn(async move {
         loop {
             let _ = sender_clone.send(AppEvent::ContainerUpdate(fetch_containers().await));
             time::sleep(Duration::from_secs(1)).await;
