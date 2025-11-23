@@ -4,7 +4,7 @@ use crossterm::{
     execute,
     terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
-use docker_tui::{AppEvent, Container};
+use docker_tui::{AppEvent, docker::Container};
 use ratatui::{
     prelude::*,
     widgets::{Block, Borders, List, ListItem, ListState},
@@ -83,7 +83,7 @@ fn run_app() -> Result<()> {
     let (sender, mut receiver) = mpsc::channel(CHANNEL_SLOTS);
 
     let sender_clone = sender.clone();
-    std::thread::spawn(move || docker_tui::docker_event_main(sender_clone));
+    std::thread::spawn(move || docker_tui::docker::main(sender_clone));
 
     // Spawn input event thread.
     std::thread::spawn(move || docker_tui::input::main(sender));
