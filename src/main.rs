@@ -131,57 +131,43 @@ fn run_app() -> Result<()> {
     });
 
     // Spawn keyboard event thread
-    let keyboard_tx = tx.clone();
+    let tx_clone = tx.clone();
     std::thread::spawn(move || {
         loop {
-            if let Ok(true) = event::poll(Duration::from_millis(50)) {
-                if let Ok(Event::Key(key)) = event::read() {
-                    if key.kind == KeyEventKind::Press {
-                        let _ = keyboard_tx.send(AppEvent::KeyPress(key.code));
-                    }
+            if let Ok(Event::Key(key)) = event::read()
+                && key.kind == KeyEventKind::Press {
+                    let _ = tx_clone.send(AppEvent::KeyPress(key.code));
                 }
-            }
         }
     });
 
     // Main event loop
-    let mut last_tick = std::time::Instant::now();
-    let tick_rate = Duration::from_millis(50);
+    terminal.draw(|frame| app.render(frame))?;
+    while let Some(event) = rx.blocking_recv() {
+        match event {
+            AppEvent::KeyPress(key_code) => {
+                app.handle_key_event(key_code);
+            }
+            AppEvent::ContainerUpdate(new_containers) => {
+                let new_containers = new_containers?;
+                let current_selection = app.list_state.selected();
+                app.containers = new_containers;
 
-    loop {
-        // Handle events from channel
-        while let Ok(event) = rx.try_recv() {
-            match event {
-                AppEvent::KeyPress(key_code) => {
-                    app.handle_key_event(key_code);
-                }
-                AppEvent::ContainerUpdate(new_containers) => {
-                    let new_containers = new_containers?;
-                    let current_selection = app.list_state.selected();
-                    app.containers = new_containers;
-
-                    // Maintain selection if possible, otherwise select first item
-                    if app.containers.is_empty() {
-                        app.list_state.select(None);
-                    } else if current_selection.is_none()
-                        || current_selection.unwrap() >= app.containers.len()
-                    {
-                        app.list_state.select(Some(0));
-                    }
+                // Maintain selection if possible, otherwise select first item
+                if app.containers.is_empty() {
+                    app.list_state.select(None);
+                } else if current_selection.is_none()
+                    || current_selection.unwrap() >= app.containers.len()
+                {
+                    app.list_state.select(Some(0));
                 }
             }
-        }
-
-        if last_tick.elapsed() >= tick_rate {
-            terminal.draw(|frame| app.render(frame))?;
-            last_tick = std::time::Instant::now();
         }
 
         if app.should_quit {
             break;
         }
-
-        std::thread::sleep(Duration::from_millis(10));
+        terminal.draw(|frame| app.render(frame))?;
     }
 
     // Cleanup
