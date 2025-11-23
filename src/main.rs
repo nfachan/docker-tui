@@ -1,3 +1,4 @@
+use bollard::Docker;
 use clap::Parser;
 use color_eyre::eyre::Result;
 
@@ -9,5 +10,7 @@ struct Args {}
 fn main() -> Result<()> {
     color_eyre::install()?;
     let _ = Args::parse();
-    docker_tui::main()
+    let docker = Docker::connect_with_socket_defaults()?;
+    docker_tui::main(docker)?;
+    Ok(())
 }

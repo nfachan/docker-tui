@@ -1,3 +1,4 @@
+use bollard::Docker;
 use color_eyre::eyre::Result;
 use crossterm::{
     event::{KeyCode, KeyEventKind},
@@ -79,7 +80,7 @@ impl App {
     }
 }
 
-pub fn main() -> Result<()> {
+pub fn main(docker: Docker) -> Result<()> {
     enable_raw_mode()?;
     let mut stdout = std::io::stdout();
     execute!(stdout, EnterAlternateScreen)?;
@@ -92,7 +93,7 @@ pub fn main() -> Result<()> {
     let (sender, mut receiver) = mpsc::channel(CHANNEL_SLOTS);
 
     let sender_clone = sender.clone();
-    std::thread::spawn(move || docker::main(sender_clone));
+    std::thread::spawn(move || docker::main(docker, sender_clone));
 
     // Spawn input event thread.
     std::thread::spawn(move || input::main(sender));

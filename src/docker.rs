@@ -10,8 +10,7 @@ pub struct Container {
     pub status: String,
 }
 
-async fn fetch_containers() -> Result<Vec<Container>> {
-    let docker = Docker::connect_with_socket_defaults()?;
+async fn fetch_containers(docker: &Docker) -> Result<Vec<Container>> {
     let options = Some(ListContainersOptions::<String> {
         all: true,
         ..Default::default()
@@ -35,9 +34,9 @@ async fn fetch_containers() -> Result<Vec<Container>> {
     Ok(parsed_containers)
 }
 
-async fn docker_event_main_inner(sender: mpsc::Sender<Event>) {
+async fn docker_event_main_inner(docker: Docker, sender: mpsc::Sender<Event>) {
     while sender
-        .send(Event::Docker(fetch_containers().await))
+        .send(Event::Docker(fetch_containers(&docker).await))
         .await
         .is_ok()
     {
@@ -45,10 +44,10 @@ async fn docker_event_main_inner(sender: mpsc::Sender<Event>) {
     }
 }
 
-pub fn main(sender: mpsc::Sender<Event>) -> Result<()> {
+pub fn main(docker: Docker, sender: mpsc::Sender<Event>) -> Result<()> {
     Builder::new_current_thread()
         .enable_all()
         .build()?
-        .block_on(async move { task::spawn(docker_event_main_inner(sender)).await })
+        .block_on(async move { task::spawn(docker_event_main_inner(docker, sender)).await })
         .map_err(Report::from)
 }
