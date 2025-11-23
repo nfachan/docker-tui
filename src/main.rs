@@ -148,10 +148,9 @@ fn run_app() -> Result<()> {
                 app.handle_key_event(key.code);
             }
             AppEvent::CrosstermEvent(_) => {}
-            AppEvent::ContainerUpdate(new_containers) => {
-                let new_containers = new_containers?;
+            AppEvent::ContainerUpdate(Ok(containers)) => {
                 let current_selection = app.list_state.selected();
-                app.containers = new_containers;
+                app.containers = containers;
 
                 // Maintain selection if possible, otherwise select first item
                 if app.containers.is_empty() {
@@ -161,6 +160,9 @@ fn run_app() -> Result<()> {
                 {
                     app.list_state.select(Some(0));
                 }
+            }
+            AppEvent::ContainerUpdate(Err(err)) => {
+                return Err(err)
             }
         }
 
