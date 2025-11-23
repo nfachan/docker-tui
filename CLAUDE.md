@@ -18,20 +18,23 @@ The project is in early development stage. Based on the repository name "docker-
 
 ## Development Workflow
 
-This project uses Stacked Git (stg) for patch management. For every command or task:
+This project uses Stacked Git (stg) for patch management. For every command or task that modifies files:
+
+**IMPORTANT**: ALWAYS create a new patch BEFORE making ANY file changes, including changes to CLAUDE.md itself.
 
 1. **Start with a new patch**: `stg new <patch-name>` - Create a new, empty patch at the top of the stack
 2. **Make your changes**: Use normal git commands to add/modify files
 3. **Format code**: Always run `cargo fmt` after writing code
-4. **Check code**: Always run `cargo check` and `cargo build` to ensure no warnings or errors
+4. **Check code**: Always run `cargo clippy`, `cargo check` and `cargo build` to ensure no warnings or errors
 5. **Refresh the patch**: `stg refresh` - Include all changes in the current patch
 6. **Add description**: `stg edit` - Add an appropriate description to the patch
 
 ## Code Quality Standards
 
 - Always run `cargo fmt` after writing code
-- Always run `cargo check` and `cargo build` when making changes, ensuring no warnings or errors
+- Always run `cargo clippy`, `cargo check` and `cargo build` when making changes, ensuring no warnings or errors
 - Always put a period (".") at the end of one-line commit messages and patch messages
+- End all single-sentence comments with a period. This applies to comments in code, items in lists, git commit messages, etc. This applies even if the phrase in question isn't actually a sentence, though ideally, the comment should be expanded to actually be a sentence.
 - When writing `use` statements, always group imports from the same crate using common prefixes. For example:
   - Instead of: `use std::io::{self, stdout};\nuse std::time::Duration;`
   - Use: `use std::{io::{self, stdout}, time::Duration};`
