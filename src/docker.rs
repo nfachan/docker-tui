@@ -37,7 +37,7 @@ async fn fetch_containers() -> Result<Vec<Container>> {
 
 async fn docker_event_main_inner(sender: mpsc::Sender<Event>) {
     while sender
-        .send(Event::DockerEvent(fetch_containers().await))
+        .send(Event::Docker(fetch_containers().await))
         .await
         .is_ok()
     {
