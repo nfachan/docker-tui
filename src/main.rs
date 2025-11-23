@@ -109,6 +109,14 @@ async fn fetch_containers() -> Result<Vec<Container>> {
     Ok(parsed_containers)
 }
 
+fn crossterm_event_main(tx: mpsc::UnboundedSender<AppEvent>) {
+    loop {
+        let _ = tx.send(AppEvent::CrosstermEvent(
+            event::read().map_err(|err| err.into()),
+        ));
+    }
+}
+
 fn run_app() -> Result<()> {
     enable_raw_mode()?;
     let mut stdout = std::io::stdout();
@@ -130,15 +138,9 @@ fn run_app() -> Result<()> {
         }
     });
 
-    // Spawn keyboard event thread
+    // Spawn input event thread.
     let tx_clone = tx.clone();
-    std::thread::spawn(move || {
-        loop {
-            let _ = tx_clone.send(AppEvent::CrosstermEvent(
-                event::read().map_err(|err| err.into()),
-            ));
-        }
-    });
+    std::thread::spawn(move || crossterm_event_main(tx_clone));
 
     // Main event loop
     terminal.draw(|frame| app.render(frame))?;
