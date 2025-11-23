@@ -11,7 +11,7 @@ use ratatui::{
     prelude::*,
     widgets::{Block, Borders, List, ListItem, ListState},
 };
-use tokio::{runtime::Runtime, sync::mpsc, time};
+use tokio::{runtime::Builder, sync::mpsc, task, time};
 
 #[derive(Debug, Clone)]
 struct Container {
@@ -116,6 +116,24 @@ fn input_event_main(sender: mpsc::Sender<AppEvent>) {
     {}
 }
 
+async fn docker_event_main_inner(sender: mpsc::Sender<AppEvent>) {
+    while sender
+        .send(AppEvent::ContainerUpdate(fetch_containers().await))
+        .await
+        .is_ok()
+    {
+        time::sleep(Duration::from_secs(1)).await;
+    }
+}
+
+fn docker_event_main(sender: mpsc::Sender<AppEvent>) -> Result<()> {
+    Builder::new_current_thread()
+        .enable_all()
+        .build()?
+        .block_on(async move { task::spawn(docker_event_main_inner(sender)).await })
+        .map_err(Report::from)
+}
+
 fn run_app() -> Result<()> {
     enable_raw_mode()?;
     let mut stdout = std::io::stdout();
@@ -128,18 +146,8 @@ fn run_app() -> Result<()> {
     const CHANNEL_SLOTS: usize = 10;
     let (sender, mut receiver) = mpsc::channel(CHANNEL_SLOTS);
 
-    // Create tokio Runtime, and put a task on it that periodically gets containers.
-    let runtime = Runtime::new()?;
     let sender_clone = sender.clone();
-    runtime.spawn(async move {
-        while sender_clone
-            .send(AppEvent::ContainerUpdate(fetch_containers().await))
-            .await
-            .is_ok()
-        {
-            time::sleep(Duration::from_secs(1)).await;
-        }
-    });
+    std::thread::spawn(move || docker_event_main(sender_clone));
 
     // Spawn input event thread.
     std::thread::spawn(move || input_event_main(sender));
