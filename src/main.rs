@@ -109,9 +109,9 @@ async fn fetch_containers() -> Result<Vec<Container>> {
     Ok(parsed_containers)
 }
 
-fn crossterm_event_main(tx: mpsc::UnboundedSender<AppEvent>) {
+fn crossterm_event_main(sender: mpsc::UnboundedSender<AppEvent>) {
     loop {
-        let _ = tx.send(AppEvent::CrosstermEvent(
+        let _ = sender.send(AppEvent::CrosstermEvent(
             event::read().map_err(|err| err.into()),
         ));
     }
@@ -126,25 +126,24 @@ fn run_app() -> Result<()> {
 
     let mut app = App::default();
 
-    let (tx, mut rx) = mpsc::unbounded_channel();
+    let (sender, mut receiver) = mpsc::unbounded_channel();
 
     // Create tokio Runtime, and put a task on it that periodically gets containers.
     let rt = Runtime::new()?;
-    let tx_clone = tx.clone();
+    let sender_clone = sender.clone();
     rt.spawn(async move {
         loop {
-            let _ = tx_clone.send(AppEvent::ContainerUpdate(fetch_containers().await));
+            let _ = sender_clone.send(AppEvent::ContainerUpdate(fetch_containers().await));
             time::sleep(Duration::from_secs(1)).await;
         }
     });
 
     // Spawn input event thread.
-    let tx_clone = tx.clone();
-    std::thread::spawn(move || crossterm_event_main(tx_clone));
+    std::thread::spawn(move || crossterm_event_main(sender));
 
     // Main event loop
     terminal.draw(|frame| app.render(frame))?;
-    while let Some(event) = rx.blocking_recv() {
+    while let Some(event) = receiver.blocking_recv() {
         match event {
             AppEvent::CrosstermEvent(Ok(Event::Key(key))) if key.kind == KeyEventKind::Press => {
                 app.handle_key_event(key.code);
