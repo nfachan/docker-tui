@@ -4,7 +4,7 @@ use crossterm::{
     execute,
     terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
-use docker_tui::{AppEvent, docker::Container, input};
+use docker_tui::{Event, docker::Container, input};
 use ratatui::{
     prelude::*,
     widgets::{Block, Borders, List, ListItem, ListState},
@@ -92,11 +92,11 @@ fn run_app() -> Result<()> {
     terminal.draw(|frame| app.render(frame))?;
     while let Some(event) = receiver.blocking_recv() {
         match event {
-            AppEvent::InputEvent(Ok(input::Event::Key(key))) if key.kind == KeyEventKind::Press => {
+            Event::InputEvent(Ok(input::Event::Key(key))) if key.kind == KeyEventKind::Press => {
                 app.handle_key_event(key.code);
             }
-            AppEvent::InputEvent(Ok(_)) => {}
-            AppEvent::DockerEvent(Ok(containers)) => {
+            Event::InputEvent(Ok(_)) => {}
+            Event::DockerEvent(Ok(containers)) => {
                 let current_selection = app.list_state.selected();
                 app.containers = containers;
 
@@ -109,7 +109,7 @@ fn run_app() -> Result<()> {
                     app.list_state.select(Some(0));
                 }
             }
-            AppEvent::InputEvent(Err(err)) | AppEvent::DockerEvent(Err(err)) => {
+            Event::InputEvent(Err(err)) | Event::DockerEvent(Err(err)) => {
                 return Err(err);
             }
         }

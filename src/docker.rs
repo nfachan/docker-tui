@@ -1,4 +1,4 @@
-use crate::AppEvent;
+use crate::Event;
 use bollard::{Docker, container::ListContainersOptions};
 use color_eyre::eyre::{Report, Result};
 use std::time::Duration;
@@ -35,9 +35,9 @@ async fn fetch_containers() -> Result<Vec<Container>> {
     Ok(parsed_containers)
 }
 
-async fn docker_event_main_inner(sender: mpsc::Sender<AppEvent>) {
+async fn docker_event_main_inner(sender: mpsc::Sender<Event>) {
     while sender
-        .send(AppEvent::DockerEvent(fetch_containers().await))
+        .send(Event::DockerEvent(fetch_containers().await))
         .await
         .is_ok()
     {
@@ -45,7 +45,7 @@ async fn docker_event_main_inner(sender: mpsc::Sender<AppEvent>) {
     }
 }
 
-pub fn main(sender: mpsc::Sender<AppEvent>) -> Result<()> {
+pub fn main(sender: mpsc::Sender<Event>) -> Result<()> {
     Builder::new_current_thread()
         .enable_all()
         .build()?

@@ -4,7 +4,7 @@ pub mod docker;
 pub mod input;
 
 #[derive(Debug)]
-pub enum AppEvent {
+pub enum Event {
     InputEvent(Result<input::Event>),
     DockerEvent(Result<Vec<docker::Container>>),
 }
