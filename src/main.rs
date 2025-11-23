@@ -1,10 +1,10 @@
 use color_eyre::eyre::Result;
 use crossterm::{
-    event::{Event, KeyCode, KeyEventKind},
+    event::{KeyCode, KeyEventKind},
     execute,
     terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
-use docker_tui::{AppEvent, docker::Container};
+use docker_tui::{AppEvent, docker::Container, input};
 use ratatui::{
     prelude::*,
     widgets::{Block, Borders, List, ListItem, ListState},
@@ -92,7 +92,7 @@ fn run_app() -> Result<()> {
     terminal.draw(|frame| app.render(frame))?;
     while let Some(event) = receiver.blocking_recv() {
         match event {
-            AppEvent::InputEvent(Ok(Event::Key(key))) if key.kind == KeyEventKind::Press => {
+            AppEvent::InputEvent(Ok(input::Event::Key(key))) if key.kind == KeyEventKind::Press => {
                 app.handle_key_event(key.code);
             }
             AppEvent::InputEvent(Ok(_)) => {}
