@@ -11,7 +11,7 @@ use ratatui::{
     prelude::*,
     widgets::{Block, Borders, List, ListItem, ListState},
 };
-use std::{cmp, io, ops::ControlFlow, thread};
+use std::{cmp, io, ops::ControlFlow, panic, thread};
 use tokio::sync::mpsc;
 
 mod docker;
@@ -128,6 +128,14 @@ fn main_loop(docker: Docker, mut terminal: Terminal<impl Backend>) -> Result<()>
     Ok(())
 }
 
+fn set_panic_hook() {
+    let hook = panic::take_hook();
+    panic::set_hook(Box::new(move |panic_info| {
+        let _ = main_clean_up(); // ignore any errors as we are already failing
+        hook(panic_info);
+    }));
+}
+
 fn main_start_up(docker: Docker) -> Result<()> {
     let mut stdout = io::stdout();
 
@@ -151,6 +159,7 @@ fn main_clean_up() -> Result<()> {
 }
 
 pub fn main(docker: Docker) -> Result<()> {
+    set_panic_hook();
     [main_start_up(docker), main_clean_up()]
         .into_iter()
         .collect()
