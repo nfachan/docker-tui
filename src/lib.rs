@@ -11,7 +11,7 @@ use ratatui::{
     prelude::*,
     widgets::{Block, Borders, List, ListItem, ListState},
 };
-use std::{io, ops::ControlFlow, thread};
+use std::{cmp, io, ops::ControlFlow, thread};
 use tokio::sync::mpsc;
 
 mod docker;
@@ -31,28 +31,22 @@ struct App {
 
 impl App {
     fn handle_key_event(&mut self, key: KeyCode) -> ControlFlow<()> {
+        let selected = self.list_state.selected().unwrap_or(0);
         match key {
             KeyCode::Char('q') | KeyCode::Esc => {
                 return ControlFlow::Break(());
             }
             KeyCode::Char('k') | KeyCode::Up => {
-                let containers_len = self.containers.len();
-                if containers_len > 0 {
-                    let selected = self.list_state.selected().unwrap_or(0);
-                    let new_selected = if selected == 0 {
-                        containers_len - 1
-                    } else {
-                        selected - 1
-                    };
-                    self.list_state.select(Some(new_selected));
+                if !self.containers.is_empty() {
+                    self.list_state.select(Some(selected.saturating_sub(1)));
                 }
             }
             KeyCode::Char('j') | KeyCode::Down => {
-                let containers_len = self.containers.len();
-                if containers_len > 0 {
-                    let selected = self.list_state.selected().unwrap_or(0);
-                    let new_selected = (selected + 1) % containers_len;
-                    self.list_state.select(Some(new_selected));
+                if !self.containers.is_empty() {
+                    self.list_state.select(Some(cmp::min(
+                        selected.saturating_add(1),
+                        self.containers.len() - 1,
+                    )));
                 }
             }
             _ => {}
