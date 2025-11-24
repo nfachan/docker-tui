@@ -66,11 +66,10 @@ impl App {
 
 impl Widget for &mut App {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        let items: Vec<ListItem> = self
+        let items = self
             .containers
             .iter()
-            .map(|container| ListItem::new(format!("{} - {}", container.name, container.status)))
-            .collect();
+            .map(|container| ListItem::new(format!("{} - {}", container.name, container.status)));
         StatefulWidget::render(
             List::new(items)
                 .block(
