@@ -30,24 +30,33 @@ struct App {
 }
 
 impl App {
-    fn handle_key_event(&mut self, key: KeyCode) -> ControlFlow<()> {
+    fn handle_up(&mut self) {
         let selected = self.list_state.selected().unwrap_or(0);
+        if !self.containers.is_empty() {
+            self.list_state.select(Some(selected.saturating_sub(1)));
+        }
+    }
+
+    fn handle_down(&mut self) {
+        let selected = self.list_state.selected().unwrap_or(0);
+        if !self.containers.is_empty() {
+            self.list_state.select(Some(cmp::min(
+                selected.saturating_add(1),
+                self.containers.len() - 1,
+            )));
+        }
+    }
+
+    fn handle_key_event(&mut self, key: KeyCode) -> ControlFlow<()> {
         match key {
             KeyCode::Char('q') | KeyCode::Esc => {
                 return ControlFlow::Break(());
             }
             KeyCode::Char('k') | KeyCode::Up => {
-                if !self.containers.is_empty() {
-                    self.list_state.select(Some(selected.saturating_sub(1)));
-                }
+                self.handle_up();
             }
             KeyCode::Char('j') | KeyCode::Down => {
-                if !self.containers.is_empty() {
-                    self.list_state.select(Some(cmp::min(
-                        selected.saturating_add(1),
-                        self.containers.len() - 1,
-                    )));
-                }
+                self.handle_down();
             }
             _ => {}
         }
