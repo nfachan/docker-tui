@@ -1,9 +1,10 @@
 use bollard::Docker;
-use color_eyre::eyre::Result;
+use color_eyre::eyre::{Report, Result};
 use crossterm::{
+    cursor,
     event::{KeyCode, KeyEventKind},
     execute,
-    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
+    terminal::{self, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use docker::Container;
 use ratatui::{
@@ -81,15 +82,7 @@ impl App {
     }
 }
 
-pub fn main(docker: Docker) -> Result<()> {
-    enable_raw_mode()?;
-    let mut stdout = io::stdout();
-    execute!(stdout, EnterAlternateScreen)?;
-    let backend = CrosstermBackend::new(stdout);
-    let mut terminal = Terminal::new(backend)?;
-
-    let mut app = App::default();
-
+fn main_loop(docker: Docker, mut terminal: Terminal<impl Backend>) -> Result<()> {
     const CHANNEL_SLOTS: usize = 10;
     let (sender, mut receiver) = mpsc::channel(CHANNEL_SLOTS);
 
@@ -98,8 +91,8 @@ pub fn main(docker: Docker) -> Result<()> {
 
     // Spawn input event thread.
     thread::spawn(move || input::main(sender));
+    let mut app = App::default();
 
-    // Main event loop
     terminal.draw(|frame| app.render(frame))?;
     while let Some(event) = receiver.blocking_recv() {
         match event {
@@ -130,11 +123,33 @@ pub fn main(docker: Docker) -> Result<()> {
         }
         terminal.draw(|frame| app.render(frame))?;
     }
-
-    // Cleanup
-    disable_raw_mode()?;
-    execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
-    terminal.show_cursor()?;
-
     Ok(())
+}
+
+fn main_start_up(docker: Docker) -> Result<()> {
+    let mut stdout = io::stdout();
+
+    terminal::enable_raw_mode()?;
+    execute!(stdout, EnterAlternateScreen)?;
+    execute!(stdout, cursor::Hide)?;
+
+    main_loop(docker, Terminal::new(CrosstermBackend::new(stdout))?)
+}
+
+fn main_clean_up() -> Result<()> {
+    let mut stdout = io::stdout();
+    [
+        execute!(stdout, cursor::Show),
+        execute!(stdout, LeaveAlternateScreen),
+        terminal::disable_raw_mode(),
+    ]
+    .into_iter()
+    .collect::<Result<(), _>>()
+    .map_err(Report::from)
+}
+
+pub fn main(docker: Docker) -> Result<()> {
+    [main_start_up(docker), main_clean_up()]
+        .into_iter()
+        .collect()
 }
