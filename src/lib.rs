@@ -11,7 +11,7 @@ use ratatui::{
     prelude::*,
     widgets::{Block, Borders, List, ListItem, ListState},
 };
-use std::{io, thread};
+use std::{io, ops::ControlFlow, thread};
 use tokio::sync::mpsc;
 
 mod docker;
@@ -25,16 +25,15 @@ pub enum Event {
 
 #[derive(Default)]
 struct App {
-    should_quit: bool,
     containers: Vec<Container>,
     list_state: ListState,
 }
 
 impl App {
-    fn handle_key_event(&mut self, key: KeyCode) {
+    fn handle_key_event(&mut self, key: KeyCode) -> ControlFlow<()> {
         match key {
             KeyCode::Char('q') | KeyCode::Esc => {
-                self.should_quit = true;
+                return ControlFlow::Break(());
             }
             KeyCode::Up => {
                 let containers_len = self.containers.len();
@@ -58,6 +57,7 @@ impl App {
             }
             _ => {}
         }
+        ControlFlow::Continue(())
     }
 
     fn render(&mut self, frame: &mut Frame) {
@@ -97,7 +97,9 @@ fn main_loop(docker: Docker, mut terminal: Terminal<impl Backend>) -> Result<()>
     while let Some(event) = receiver.blocking_recv() {
         match event {
             Event::Input(Ok(input::Event::Key(key))) if key.kind == KeyEventKind::Press => {
-                app.handle_key_event(key.code);
+                if let ControlFlow::Break(_) = app.handle_key_event(key.code) {
+                    break;
+                }
             }
             Event::Input(Ok(_)) => {}
             Event::Docker(Ok(containers)) => {
@@ -116,10 +118,6 @@ fn main_loop(docker: Docker, mut terminal: Terminal<impl Backend>) -> Result<()>
             Event::Input(Err(err)) | Event::Docker(Err(err)) => {
                 return Err(err);
             }
-        }
-
-        if app.should_quit {
-            break;
         }
         terminal.draw(|frame| app.render(frame))?;
     }
