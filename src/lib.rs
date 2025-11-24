@@ -62,26 +62,28 @@ impl App {
         }
         ControlFlow::Continue(())
     }
+}
 
-    fn render(&mut self, frame: &mut Frame) {
-        let area = frame.area();
-
-        let block = Block::default()
-            .title("Docker Containers")
-            .borders(Borders::ALL);
-
+impl Widget for &mut App {
+    fn render(self, area: Rect, buf: &mut Buffer) {
         let items: Vec<ListItem> = self
             .containers
             .iter()
             .map(|container| ListItem::new(format!("{} - {}", container.name, container.status)))
             .collect();
-
-        let list = List::new(items)
-            .block(block)
-            .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
-            .highlight_symbol("> ");
-
-        frame.render_stateful_widget(list, area, &mut self.list_state);
+        StatefulWidget::render(
+            List::new(items)
+                .block(
+                    Block::default()
+                        .title("Docker Containers")
+                        .borders(Borders::ALL),
+                )
+                .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
+                .highlight_symbol("> "),
+            area,
+            buf,
+            &mut self.list_state,
+        );
     }
 }
 
@@ -96,7 +98,7 @@ fn main_loop(docker: Docker, mut terminal: Terminal<impl Backend>) -> Result<()>
     thread::spawn(move || input::main(sender));
     let mut app = App::default();
 
-    terminal.draw(|frame| app.render(frame))?;
+    terminal.draw(|frame| frame.render_widget(&mut app, frame.area()))?;
     while let Some(event) = receiver.blocking_recv() {
         match event {
             Event::Input(Ok(input::Event::Key(key))) if key.kind == KeyEventKind::Press => {
@@ -122,7 +124,7 @@ fn main_loop(docker: Docker, mut terminal: Terminal<impl Backend>) -> Result<()>
                 return Err(err);
             }
         }
-        terminal.draw(|frame| app.render(frame))?;
+        terminal.draw(|frame| frame.render_widget(&mut app, frame.area()))?;
     }
     Ok(())
 }
