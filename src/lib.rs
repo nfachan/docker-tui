@@ -10,6 +10,7 @@ use ratatui::{
     prelude::*,
     widgets::{Block, Borders, List, ListItem, ListState},
 };
+use std::{io, thread};
 use tokio::sync::mpsc;
 
 mod docker;
@@ -82,7 +83,7 @@ impl App {
 
 pub fn main(docker: Docker) -> Result<()> {
     enable_raw_mode()?;
-    let mut stdout = std::io::stdout();
+    let mut stdout = io::stdout();
     execute!(stdout, EnterAlternateScreen)?;
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
@@ -93,10 +94,10 @@ pub fn main(docker: Docker) -> Result<()> {
     let (sender, mut receiver) = mpsc::channel(CHANNEL_SLOTS);
 
     let sender_clone = sender.clone();
-    std::thread::spawn(move || docker::main(docker, sender_clone));
+    thread::spawn(move || docker::main(docker, sender_clone));
 
     // Spawn input event thread.
-    std::thread::spawn(move || input::main(sender));
+    thread::spawn(move || input::main(sender));
 
     // Main event loop
     terminal.draw(|frame| app.render(frame))?;
