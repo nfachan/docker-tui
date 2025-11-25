@@ -1,7 +1,7 @@
 use derive_getters::Getters;
 use std::cmp;
 
-#[derive(Default, Getters)]
+#[derive(Clone, Debug, Default, Getters, Eq, PartialEq)]
 pub struct Viewport {
     #[getter(skip)]
     num_containers: usize,
@@ -106,5 +106,209 @@ impl Viewport {
                     f(container)
                 }
             })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rstest::rstest;
+
+    macro_rules! viewport {
+        ($num_containers:expr, $selection:expr, $top:expr, $height:expr) => {
+            Viewport {
+                num_containers: $num_containers,
+                selection: $selection,
+                top: $top,
+                height: $height,
+            }
+        };
+    }
+
+    #[rstest]
+    // Zero containers.
+    #[case(viewport!(0, 0, 0, 0), viewport!(0, 0, 0, 0))]
+    #[case(viewport!(0, 0, 0, 1), viewport!(0, 0, 0, 1))]
+    // One container.
+    #[case(viewport!(1, 0, 0, 0), viewport!(1, 0, 0, 0))]
+    #[case(viewport!(1, 0, 0, 1), viewport!(1, 0, 0, 1))]
+    #[case(viewport!(1, 0, 0, 2), viewport!(1, 0, 0, 2))]
+    // Two containers.
+    #[case(viewport!(2, 0, 0, 0), viewport!(2, 0, 0, 0))]
+    #[case(viewport!(2, 1, 1, 0), viewport!(2, 0, 0, 0))]
+    #[case(viewport!(2, 0, 0, 1), viewport!(2, 0, 0, 1))]
+    #[case(viewport!(2, 1, 1, 1), viewport!(2, 0, 0, 1))]
+    #[case(viewport!(2, 0, 0, 2), viewport!(2, 0, 0, 2))]
+    #[case(viewport!(2, 1, 0, 2), viewport!(2, 0, 0, 2))]
+    #[case(viewport!(2, 0, 0, 3), viewport!(2, 0, 0, 3))]
+    #[case(viewport!(2, 1, 0, 3), viewport!(2, 0, 0, 3))]
+    // Three containers.
+    #[case(viewport!(3, 0, 0, 2), viewport!(3, 0, 0, 2))]
+    #[case(viewport!(3, 1, 0, 2), viewport!(3, 0, 0, 2))]
+    #[case(viewport!(3, 1, 1, 2), viewport!(3, 0, 0, 2))]
+    #[case(viewport!(3, 2, 1, 2), viewport!(3, 1, 1, 2))]
+    fn handle_up(#[case] mut before: Viewport, #[case] after: Viewport) {
+        before.handle_up();
+        assert_eq!(before, after);
+    }
+
+    #[rstest]
+    // Zero containers.
+    #[case(viewport!(0, 0, 0, 0), viewport!(0, 0, 0, 0))]
+    #[case(viewport!(0, 0, 0, 1), viewport!(0, 0, 0, 1))]
+    // One container.
+    #[case(viewport!(1, 0, 0, 0), viewport!(1, 0, 0, 0))]
+    #[case(viewport!(1, 0, 0, 1), viewport!(1, 0, 0, 1))]
+    #[case(viewport!(1, 0, 0, 2), viewport!(1, 0, 0, 2))]
+    // Two containers.
+    #[case(viewport!(2, 0, 0, 0), viewport!(2, 1, 1, 0))]
+    #[case(viewport!(2, 1, 1, 0), viewport!(2, 1, 1, 0))]
+    #[case(viewport!(2, 0, 0, 1), viewport!(2, 1, 1, 1))]
+    #[case(viewport!(2, 1, 1, 1), viewport!(2, 1, 1, 1))]
+    #[case(viewport!(2, 0, 0, 2), viewport!(2, 1, 0, 2))]
+    #[case(viewport!(2, 1, 0, 2), viewport!(2, 1, 0, 2))]
+    #[case(viewport!(2, 0, 0, 3), viewport!(2, 1, 0, 3))]
+    #[case(viewport!(2, 1, 0, 3), viewport!(2, 1, 0, 3))]
+    // Three containers.
+    #[case(viewport!(3, 0, 0, 2), viewport!(3, 1, 0, 2))]
+    #[case(viewport!(3, 1, 0, 2), viewport!(3, 2, 1, 2))]
+    #[case(viewport!(3, 1, 1, 2), viewport!(3, 2, 1, 2))]
+    #[case(viewport!(3, 2, 1, 2), viewport!(3, 2, 1, 2))]
+    fn handle_down(#[case] mut before: Viewport, #[case] after: Viewport) {
+        before.handle_down();
+        assert_eq!(before, after);
+    }
+
+    #[rstest]
+    // Height zero to height zero.
+    #[case(viewport!(0, 0, 0, 0), 0, viewport!(0, 0, 0, 0))]
+    #[case(viewport!(1, 0, 0, 0), 0, viewport!(1, 0, 0, 0))]
+    #[case(viewport!(2, 0, 0, 0), 0, viewport!(2, 0, 0, 0))]
+    #[case(viewport!(2, 1, 1, 0), 0, viewport!(2, 1, 1, 0))]
+    // Height zero to height one.
+    #[case(viewport!(0, 0, 0, 0), 1, viewport!(0, 0, 0, 1))]
+    #[case(viewport!(1, 0, 0, 0), 1, viewport!(1, 0, 0, 1))]
+    #[case(viewport!(2, 0, 0, 0), 1, viewport!(2, 0, 0, 1))]
+    #[case(viewport!(2, 1, 1, 0), 1, viewport!(2, 1, 1, 1))]
+    // Height zero to height two.
+    #[case(viewport!(0, 0, 0, 0), 2, viewport!(0, 0, 0, 2))]
+    #[case(viewport!(1, 0, 0, 0), 2, viewport!(1, 0, 0, 2))]
+    #[case(viewport!(2, 0, 0, 0), 2, viewport!(2, 0, 0, 2))]
+    #[case(viewport!(2, 1, 1, 0), 2, viewport!(2, 1, 0, 2))]
+    #[case(viewport!(3, 0, 0, 0), 2, viewport!(3, 0, 0, 2))]
+    #[case(viewport!(3, 1, 1, 0), 2, viewport!(3, 1, 1, 2))]
+    #[case(viewport!(3, 2, 2, 0), 2, viewport!(3, 2, 1, 2))]
+    // Height zero to height three.
+    #[case(viewport!(0, 0, 0, 0), 3, viewport!(0, 0, 0, 3))]
+    #[case(viewport!(1, 0, 0, 0), 3, viewport!(1, 0, 0, 3))]
+    #[case(viewport!(2, 0, 0, 0), 3, viewport!(2, 0, 0, 3))]
+    #[case(viewport!(2, 1, 1, 0), 3, viewport!(2, 1, 0, 3))]
+    #[case(viewport!(3, 0, 0, 0), 3, viewport!(3, 0, 0, 3))]
+    #[case(viewport!(3, 1, 1, 0), 3, viewport!(3, 1, 0, 3))]
+    #[case(viewport!(3, 2, 2, 0), 3, viewport!(3, 2, 0, 3))]
+    #[case(viewport!(4, 0, 0, 0), 3, viewport!(4, 0, 0, 3))]
+    #[case(viewport!(4, 1, 1, 0), 3, viewport!(4, 1, 1, 3))]
+    #[case(viewport!(4, 2, 2, 0), 3, viewport!(4, 2, 1, 3))]
+    #[case(viewport!(4, 3, 3, 0), 3, viewport!(4, 3, 1, 3))]
+    // Height one to height zero.
+    #[case(viewport!(0, 0, 0, 1), 0, viewport!(0, 0, 0, 0))]
+    #[case(viewport!(1, 0, 0, 1), 0, viewport!(1, 0, 0, 0))]
+    #[case(viewport!(2, 0, 0, 1), 0, viewport!(2, 0, 0, 0))]
+    #[case(viewport!(2, 1, 1, 1), 0, viewport!(2, 1, 1, 0))]
+    // Height one to height one.
+    #[case(viewport!(0, 0, 0, 1), 1, viewport!(0, 0, 0, 1))]
+    #[case(viewport!(1, 0, 0, 1), 1, viewport!(1, 0, 0, 1))]
+    #[case(viewport!(2, 0, 0, 1), 1, viewport!(2, 0, 0, 1))]
+    #[case(viewport!(2, 1, 1, 1), 1, viewport!(2, 1, 1, 1))]
+    // Height one to height two.
+    #[case(viewport!(0, 0, 0, 1), 2, viewport!(0, 0, 0, 2))]
+    #[case(viewport!(1, 0, 0, 1), 2, viewport!(1, 0, 0, 2))]
+    #[case(viewport!(2, 0, 0, 1), 2, viewport!(2, 0, 0, 2))]
+    #[case(viewport!(2, 1, 1, 1), 2, viewport!(2, 1, 0, 2))]
+    #[case(viewport!(3, 0, 0, 1), 2, viewport!(3, 0, 0, 2))]
+    #[case(viewport!(3, 1, 1, 1), 2, viewport!(3, 1, 1, 2))]
+    #[case(viewport!(3, 2, 2, 1), 2, viewport!(3, 2, 1, 2))]
+    // Height one to height three.
+    #[case(viewport!(0, 0, 0, 1), 3, viewport!(0, 0, 0, 3))]
+    #[case(viewport!(1, 0, 0, 1), 3, viewport!(1, 0, 0, 3))]
+    #[case(viewport!(2, 0, 0, 1), 3, viewport!(2, 0, 0, 3))]
+    #[case(viewport!(2, 1, 1, 1), 3, viewport!(2, 1, 0, 3))]
+    #[case(viewport!(3, 0, 0, 1), 3, viewport!(3, 0, 0, 3))]
+    #[case(viewport!(3, 1, 1, 1), 3, viewport!(3, 1, 0, 3))]
+    #[case(viewport!(3, 2, 2, 1), 3, viewport!(3, 2, 0, 3))]
+    #[case(viewport!(4, 0, 0, 1), 3, viewport!(4, 0, 0, 3))]
+    #[case(viewport!(4, 1, 1, 1), 3, viewport!(4, 1, 1, 3))]
+    #[case(viewport!(4, 2, 2, 1), 3, viewport!(4, 2, 1, 3))]
+    #[case(viewport!(4, 3, 3, 1), 3, viewport!(4, 3, 1, 3))]
+    // Height two to height zero.
+    #[case(viewport!(0, 0, 0, 2), 0, viewport!(0, 0, 0, 0))]
+    #[case(viewport!(1, 0, 0, 2), 0, viewport!(1, 0, 0, 0))]
+    #[case(viewport!(2, 0, 0, 2), 0, viewport!(2, 0, 0, 0))]
+    #[case(viewport!(2, 1, 0, 2), 0, viewport!(2, 1, 1, 0))]
+    // Height two to height one.
+    #[case(viewport!(0, 0, 0, 2), 1, viewport!(0, 0, 0, 1))]
+    #[case(viewport!(1, 0, 0, 2), 1, viewport!(1, 0, 0, 1))]
+    #[case(viewport!(2, 0, 0, 2), 1, viewport!(2, 0, 0, 1))]
+    #[case(viewport!(2, 1, 0, 2), 1, viewport!(2, 1, 1, 1))]
+    // Height two to height two.
+    #[case(viewport!(0, 0, 0, 2), 2, viewport!(0, 0, 0, 2))]
+    #[case(viewport!(1, 0, 0, 2), 2, viewport!(1, 0, 0, 2))]
+    #[case(viewport!(2, 0, 0, 2), 2, viewport!(2, 0, 0, 2))]
+    #[case(viewport!(2, 1, 0, 2), 2, viewport!(2, 1, 0, 2))]
+    #[case(viewport!(3, 0, 0, 2), 2, viewport!(3, 0, 0, 2))]
+    #[case(viewport!(3, 1, 1, 2), 2, viewport!(3, 1, 1, 2))]
+    #[case(viewport!(3, 2, 1, 2), 2, viewport!(3, 2, 1, 2))]
+    // Height two to height three.
+    #[case(viewport!(0, 0, 0, 2), 3, viewport!(0, 0, 0, 3))]
+    #[case(viewport!(1, 0, 0, 2), 3, viewport!(1, 0, 0, 3))]
+    #[case(viewport!(2, 0, 0, 2), 3, viewport!(2, 0, 0, 3))]
+    #[case(viewport!(2, 1, 0, 2), 3, viewport!(2, 1, 0, 3))]
+    #[case(viewport!(3, 0, 0, 2), 3, viewport!(3, 0, 0, 3))]
+    #[case(viewport!(3, 1, 0, 2), 3, viewport!(3, 1, 0, 3))]
+    #[case(viewport!(3, 1, 1, 2), 3, viewport!(3, 1, 0, 3))]
+    #[case(viewport!(3, 2, 1, 2), 3, viewport!(3, 2, 0, 3))]
+    #[case(viewport!(4, 0, 0, 2), 3, viewport!(4, 0, 0, 3))]
+    #[case(viewport!(4, 1, 0, 2), 3, viewport!(4, 1, 0, 3))]
+    #[case(viewport!(4, 1, 1, 2), 3, viewport!(4, 1, 1, 3))]
+    #[case(viewport!(4, 2, 1, 2), 3, viewport!(4, 2, 1, 3))]
+    #[case(viewport!(4, 2, 2, 2), 3, viewport!(4, 2, 1, 3))]
+    #[case(viewport!(4, 3, 2, 2), 3, viewport!(4, 3, 1, 3))]
+    // Height three to height zero.
+    #[case(viewport!(0, 0, 0, 3), 0, viewport!(0, 0, 0, 0))]
+    #[case(viewport!(1, 0, 0, 3), 0, viewport!(1, 0, 0, 0))]
+    #[case(viewport!(2, 0, 0, 3), 0, viewport!(2, 0, 0, 0))]
+    #[case(viewport!(2, 1, 0, 3), 0, viewport!(2, 1, 1, 0))]
+    #[case(viewport!(3, 0, 0, 3), 0, viewport!(3, 0, 0, 0))]
+    #[case(viewport!(3, 1, 0, 3), 0, viewport!(3, 1, 1, 0))]
+    #[case(viewport!(3, 2, 0, 3), 0, viewport!(3, 2, 2, 0))]
+    // Height three to height one.
+    #[case(viewport!(0, 0, 0, 3), 1, viewport!(0, 0, 0, 1))]
+    #[case(viewport!(1, 0, 0, 3), 1, viewport!(1, 0, 0, 1))]
+    #[case(viewport!(2, 0, 0, 3), 1, viewport!(2, 0, 0, 1))]
+    #[case(viewport!(2, 1, 0, 3), 1, viewport!(2, 1, 1, 1))]
+    #[case(viewport!(3, 0, 0, 3), 1, viewport!(3, 0, 0, 1))]
+    #[case(viewport!(3, 1, 0, 3), 1, viewport!(3, 1, 1, 1))]
+    #[case(viewport!(3, 2, 0, 3), 1, viewport!(3, 2, 2, 1))]
+    // Height three to height two.
+    #[case(viewport!(0, 0, 0, 3), 2, viewport!(0, 0, 0, 2))]
+    #[case(viewport!(1, 0, 0, 3), 2, viewport!(1, 0, 0, 2))]
+    #[case(viewport!(2, 0, 0, 3), 2, viewport!(2, 0, 0, 2))]
+    #[case(viewport!(2, 1, 0, 3), 2, viewport!(2, 1, 0, 2))]
+    #[case(viewport!(3, 0, 0, 3), 2, viewport!(3, 0, 0, 2))]
+    #[case(viewport!(3, 1, 0, 3), 2, viewport!(3, 1, 0, 2))]
+    #[case(viewport!(3, 2, 0, 3), 2, viewport!(3, 2, 1, 2))]
+    #[case(viewport!(4, 0, 0, 3), 2, viewport!(4, 0, 0, 2))]
+    #[case(viewport!(4, 1, 0, 3), 2, viewport!(4, 1, 0, 2))]
+    #[case(viewport!(4, 1, 1, 3), 2, viewport!(4, 1, 1, 2))]
+    #[case(viewport!(4, 2, 0, 3), 2, viewport!(4, 2, 1, 2))]
+    #[case(viewport!(4, 2, 1, 3), 2, viewport!(4, 2, 1, 2))]
+    #[case(viewport!(4, 3, 1, 3), 2, viewport!(4, 3, 2, 2))]
+    fn handle_resize(
+        #[case] mut before: Viewport,
+        #[case] resize_to: usize,
+        #[case] after: Viewport,
+    ) {
+        before.handle_resize(resize_to);
+        assert_eq!(before, after);
     }
 }
