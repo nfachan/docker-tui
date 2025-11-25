@@ -35,7 +35,7 @@ impl App {
             KeyCode::Char('q') | KeyCode::Esc => {
                 return ControlFlow::Break(());
             }
-            KeyCode::Up => {
+            KeyCode::Char('k') | KeyCode::Up => {
                 let containers_len = self.containers.len();
                 if containers_len > 0 {
                     let selected = self.list_state.selected().unwrap_or(0);
@@ -47,7 +47,7 @@ impl App {
                     self.list_state.select(Some(new_selected));
                 }
             }
-            KeyCode::Down => {
+            KeyCode::Char('j') | KeyCode::Down => {
                 let containers_len = self.containers.len();
                 if containers_len > 0 {
                     let selected = self.list_state.selected().unwrap_or(0);
