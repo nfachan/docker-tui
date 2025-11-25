@@ -72,7 +72,7 @@ impl Widget for &mut App {
                 .render(area, buf);
         } else {
             // We may not always get the resize event before some other event that causes a redraw.
-            if self.viewport.height != usize::from(inner_area.height) {
+            if self.viewport.height() != usize::from(inner_area.height) {
                 self.handle_resize(area.height);
             }
 

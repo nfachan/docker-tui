@@ -1,11 +1,15 @@
+use derive_getters::Getters;
 use std::cmp;
 
-#[derive(Default)]
+#[derive(Default, Getters)]
 pub struct Viewport {
+    #[getter(skip)]
     num_containers: usize,
-    pub selection: usize,
+    #[getter(skip)]
+    selection: usize,
+    #[getter(skip)]
     top: usize,
-    pub height: usize,
+    height: usize,
 }
 
 impl Viewport {
