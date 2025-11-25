@@ -2,7 +2,7 @@ use bollard::Docker;
 use color_eyre::eyre::{Report, Result};
 use crossterm::{
     cursor,
-    event::{KeyCode, KeyEventKind},
+    event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers},
     execute,
     terminal::{self, EnterAlternateScreen, LeaveAlternateScreen},
 };
@@ -36,16 +36,19 @@ impl App {
         Block::bordered().title("Containers")
     }
 
-    fn handle_key_event(&mut self, key: KeyCode) -> ControlFlow<()> {
-        match key {
-            KeyCode::Char('q') | KeyCode::Esc => {
+    fn handle_key_event(&mut self, key_event: KeyEvent) -> ControlFlow<()> {
+        match (key_event.code, key_event.modifiers) {
+            (KeyCode::Char('q') | KeyCode::Esc, _) => {
                 return ControlFlow::Break(());
             }
-            KeyCode::Char('k') | KeyCode::Up => {
+            (KeyCode::Char('k') | KeyCode::Up, _) => {
                 self.viewport.move_selection_up_one_line();
             }
-            KeyCode::Char('j') | KeyCode::Down => {
+            (KeyCode::Char('j') | KeyCode::Down, _) => {
                 self.viewport.move_selection_down_one_line();
+            }
+            (KeyCode::Char('e'), KeyModifiers::CONTROL) => {
+                self.viewport.scroll_down_one_line();
             }
             _ => {}
         }
@@ -104,7 +107,7 @@ fn main_loop(docker: Docker, mut terminal: Terminal<impl Backend>) -> Result<()>
     while let Some(event) = receiver.blocking_recv() {
         match event {
             Event::Input(Ok(input::Event::Key(key))) if key.kind == KeyEventKind::Press => {
-                if let ControlFlow::Break(_) = app.handle_key_event(key.code) {
+                if let ControlFlow::Break(_) = app.handle_key_event(key) {
                     break;
                 }
             }

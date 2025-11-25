@@ -46,7 +46,6 @@ impl Viewport {
         self.validate();
     }
 
-    #[allow(unused)]
     pub fn scroll_down_one_line(&mut self) {
         if self.top + cmp::max(self.height, 1) < self.num_containers {
             // We have room to scroll the viewport down by one. We may have to move the
