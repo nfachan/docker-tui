@@ -100,6 +100,32 @@ impl Viewport {
         }
         self.validate();
     }
+
+    fn select_for_render<C, LI, F, G>(
+        &self,
+        containers: &[C],
+        f: F,
+        g: G,
+    ) -> impl Iterator<Item = LI>
+    where
+        F: Fn(&C) -> LI,
+        G: Fn(&C) -> LI,
+    {
+        assert_eq!(containers.len(), self.num_containers);
+        let empty_rows = (self.top + self.height).saturating_sub(self.num_containers);
+        let container_rows = self.height - empty_rows;
+        let selection_offset_in_viewport = self.selection - self.top;
+        containers[self.top..self.top + container_rows]
+            .iter()
+            .enumerate()
+            .map(move |(offset, container)| {
+                if offset == selection_offset_in_viewport {
+                    g(container)
+                } else {
+                    f(container)
+                }
+            })
+    }
 }
 
 #[derive(Default)]
@@ -143,7 +169,6 @@ impl App {
 impl Widget for &mut App {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let inner_area = App::block().inner(area);
-        let num_containers = self.containers.len();
         if self.containers.is_empty() {
             Paragraph::new("no containers")
                 .block(App::block())
@@ -154,28 +179,14 @@ impl Widget for &mut App {
                 self.handle_resize(area.height);
             }
 
-            let empty_rows =
-                (self.viewport.top + self.viewport.height).saturating_sub(num_containers);
-            let container_rows = self.viewport.height - empty_rows;
-            let selection_offset_in_viewport = self.viewport.selection - self.viewport.top;
-            let items = self.containers[self.viewport.top..self.viewport.top + container_rows]
-                .iter()
-                .enumerate()
-                .map(|(offset, container)| {
-                    let prefix = if offset == selection_offset_in_viewport {
-                        "> "
-                    } else {
-                        "  "
-                    };
-                    let mut item = ListItem::new(format!(
-                        "{}{} - {}",
-                        prefix, container.name, container.status
-                    ));
-                    if offset == selection_offset_in_viewport {
-                        item = item.add_modifier(Modifier::REVERSED);
-                    }
-                    item
-                });
+            let items = self.viewport.select_for_render(
+                &self.containers[..],
+                |container| ListItem::new(format!("  {} - {}", container.name, container.status)),
+                |container| {
+                    ListItem::new(format!("> {} - {}", container.name, container.status))
+                        .add_modifier(Modifier::REVERSED)
+                },
+            );
             Widget::render(List::new(items).block(App::block()), area, buf);
         }
     }
