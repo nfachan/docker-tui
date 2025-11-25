@@ -50,6 +50,9 @@ impl App {
             (KeyCode::Char('e'), KeyModifiers::CONTROL) => {
                 self.viewport.scroll_down_one_line();
             }
+            (KeyCode::Char('y'), KeyModifiers::CONTROL) => {
+                self.viewport.scroll_up_one_line();
+            }
             _ => {}
         }
         ControlFlow::Continue(())

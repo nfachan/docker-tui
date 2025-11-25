@@ -46,7 +46,6 @@ impl Viewport {
         self.validate();
     }
 
-    #[cfg(test)]
     pub fn scroll_up_one_line(&mut self) {
         if self.top > 0 {
             // We have room to scroll the viewport up by one. We may have to move the
