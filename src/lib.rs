@@ -9,7 +9,7 @@ use crossterm::{
 use docker::Container;
 use ratatui::{
     prelude::*,
-    widgets::{Block, Borders, List, ListItem, ListState},
+    widgets::{Block, List, ListItem, Paragraph},
 };
 use std::{cmp, io, ops::ControlFlow, panic, thread};
 use tokio::sync::mpsc;
@@ -26,25 +26,52 @@ pub enum Event {
 #[derive(Default)]
 struct App {
     containers: Vec<Container>,
-    list_state: ListState,
+    selection: usize,
+    viewport_top: usize,
+    viewport_height: usize,
 }
 
 impl App {
-    fn handle_up(&mut self) {
-        let selected = self.list_state.selected().unwrap_or(0);
-        if !self.containers.is_empty() {
-            self.list_state.select(Some(selected.saturating_sub(1)));
+    fn block() -> Block<'static> {
+        Block::bordered().title("Containers")
+    }
+
+    fn validate_selection_and_viewport(&self) {
+        let num_containers = self.containers.len();
+        if num_containers == 0 {
+            assert_eq!(self.selection, 0);
+            assert_eq!(self.viewport_top, 0);
+        } else if self.viewport_height == 0 {
+            assert!(self.selection < num_containers);
+            assert_eq!(self.viewport_top, self.selection);
+        } else {
+            assert!(self.selection < num_containers);
+            assert!(self.viewport_top <= self.selection);
+            assert!(self.selection < self.viewport_top + self.viewport_height);
+            assert!(
+                self.viewport_top + self.viewport_height <= num_containers
+                    || self.viewport_top == 0
+            );
         }
     }
 
-    fn handle_down(&mut self) {
-        let selected = self.list_state.selected().unwrap_or(0);
-        if !self.containers.is_empty() {
-            self.list_state.select(Some(cmp::min(
-                selected.saturating_add(1),
-                self.containers.len() - 1,
-            )));
+    fn handle_up(&mut self) {
+        self.selection = self.selection.saturating_sub(1);
+        if self.viewport_top > self.selection {
+            self.viewport_top -= 1;
         }
+        self.validate_selection_and_viewport();
+    }
+
+    fn handle_down(&mut self) {
+        let num_containers = self.containers.len();
+        self.selection = cmp::min(num_containers.saturating_sub(1), self.selection + 1);
+        if self.viewport_height == 0 {
+            self.viewport_top = self.selection;
+        } else if self.selection >= self.viewport_top + self.viewport_height {
+            self.viewport_top += 1;
+        }
+        self.validate_selection_and_viewport();
     }
 
     fn handle_key_event(&mut self, key: KeyCode) -> ControlFlow<()> {
@@ -62,27 +89,84 @@ impl App {
         }
         ControlFlow::Continue(())
     }
+
+    fn handle_resize(&mut self, height: u16) {
+        let old_height = self.viewport_height;
+        self.viewport_height = usize::from(Self::block().inner(Rect::new(0, 0, 1, height)).height);
+        let num_containers = self.containers.len();
+        if num_containers > 0 {
+            if self.viewport_height < old_height {
+                if self.viewport_height == 0 {
+                    self.viewport_top = self.selection;
+                } else {
+                    self.viewport_top += self
+                        .selection
+                        .saturating_sub(self.viewport_top + self.viewport_height - 1);
+                }
+            } else if self.viewport_height > old_height {
+                self.viewport_top = self.viewport_top.saturating_sub(
+                    (self.viewport_top + self.viewport_height).saturating_sub(num_containers),
+                );
+            }
+        }
+        self.validate_selection_and_viewport();
+    }
+
+    fn handle_containers(&mut self, containers: Vec<Container>) {
+        self.containers = containers;
+        let num_containers = self.containers.len();
+
+        if num_containers == 0 {
+            self.selection = 0;
+            self.viewport_top = 0;
+        } else {
+            if self.selection >= num_containers {
+                self.selection = num_containers - 1;
+            }
+            self.viewport_top = self.viewport_top.saturating_sub(
+                (self.viewport_top + self.viewport_height).saturating_sub(num_containers),
+            );
+        }
+    }
 }
 
 impl Widget for &mut App {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        let items = self
-            .containers
-            .iter()
-            .map(|container| ListItem::new(format!("{} - {}", container.name, container.status)));
-        StatefulWidget::render(
-            List::new(items)
-                .block(
-                    Block::default()
-                        .title("Docker Containers")
-                        .borders(Borders::ALL),
-                )
-                .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
-                .highlight_symbol("> "),
-            area,
-            buf,
-            &mut self.list_state,
-        );
+        let inner_area = App::block().inner(area);
+        let num_containers = self.containers.len();
+        if self.containers.is_empty() {
+            Paragraph::new("no containers")
+                .block(App::block())
+                .render(area, buf);
+        } else {
+            if self.viewport_height != usize::from(inner_area.height) {
+                self.handle_resize(area.height);
+            }
+
+            let empty_rows =
+                (self.viewport_top + self.viewport_height).saturating_sub(num_containers);
+            let container_rows = self.viewport_height - empty_rows;
+            let selection_offset_in_viewport = self.selection - self.viewport_top;
+            let items = self.containers[self.viewport_top..self.viewport_top + container_rows]
+                .iter()
+                .enumerate()
+                .map(|(offset, container)| {
+                    let prefix = if offset == selection_offset_in_viewport {
+                        "> "
+                    } else {
+                        "  "
+                    };
+                    let mut item = ListItem::new(format!(
+                        "{}{} - {}",
+                        prefix, container.name, container.status
+                    ));
+                    if offset == selection_offset_in_viewport {
+                        item = item.add_modifier(Modifier::REVERSED);
+                    }
+                    item
+                });
+            Widget::render(List::new(items).block(App::block()), area, buf);
+        }
     }
 }
 
@@ -107,17 +191,7 @@ fn main_loop(docker: Docker, mut terminal: Terminal<impl Backend>) -> Result<()>
             }
             Event::Input(Ok(_)) => {}
             Event::Docker(Ok(containers)) => {
-                let current_selection = app.list_state.selected();
-                app.containers = containers;
-
-                // Maintain selection if possible, otherwise select first item
-                if app.containers.is_empty() {
-                    app.list_state.select(None);
-                } else if current_selection.is_none()
-                    || current_selection.unwrap() >= app.containers.len()
-                {
-                    app.list_state.select(Some(0));
-                }
+                app.handle_containers(containers);
             }
             Event::Input(Err(err)) | Event::Docker(Err(err)) => {
                 return Err(err);
