@@ -24,54 +24,93 @@ pub enum Event {
 }
 
 #[derive(Default)]
-struct App {
-    containers: Vec<Container>,
+struct Viewport {
+    num_containers: usize,
     selection: usize,
-    viewport_top: usize,
-    viewport_height: usize,
+    top: usize,
+    height: usize,
 }
 
-impl App {
-    fn block() -> Block<'static> {
-        Block::bordered().title("Containers")
-    }
-
-    fn validate_selection_and_viewport(&self) {
-        let num_containers = self.containers.len();
-        if num_containers == 0 {
+impl Viewport {
+    fn validate(&self) {
+        if self.num_containers == 0 {
             assert_eq!(self.selection, 0);
-            assert_eq!(self.viewport_top, 0);
-        } else if self.viewport_height == 0 {
-            assert!(self.selection < num_containers);
-            assert_eq!(self.viewport_top, self.selection);
+            assert_eq!(self.top, 0);
+        } else if self.height == 0 {
+            assert!(self.selection < self.num_containers);
+            assert_eq!(self.top, self.selection);
         } else {
-            assert!(self.selection < num_containers);
-            assert!(self.viewport_top <= self.selection);
-            assert!(self.selection < self.viewport_top + self.viewport_height);
-            assert!(
-                self.viewport_top + self.viewport_height <= num_containers
-                    || self.viewport_top == 0
-            );
+            assert!(self.selection < self.num_containers);
+            assert!(self.top <= self.selection);
+            assert!(self.selection < self.top + self.height);
+            assert!(self.top + self.height <= self.num_containers || self.top == 0);
         }
     }
 
     fn handle_up(&mut self) {
         self.selection = self.selection.saturating_sub(1);
-        if self.viewport_top > self.selection {
-            self.viewport_top -= 1;
+        if self.top > self.selection {
+            self.top -= 1;
         }
-        self.validate_selection_and_viewport();
+        self.validate();
     }
 
     fn handle_down(&mut self) {
-        let num_containers = self.containers.len();
-        self.selection = cmp::min(num_containers.saturating_sub(1), self.selection + 1);
-        if self.viewport_height == 0 {
-            self.viewport_top = self.selection;
-        } else if self.selection >= self.viewport_top + self.viewport_height {
-            self.viewport_top += 1;
+        self.selection = cmp::min(self.num_containers.saturating_sub(1), self.selection + 1);
+        if self.height == 0 {
+            self.top = self.selection;
+        } else if self.selection >= self.top + self.height {
+            self.top += 1;
         }
-        self.validate_selection_and_viewport();
+        self.validate();
+    }
+
+    fn handle_resize(&mut self, height: usize) {
+        let old_height = self.height;
+        self.height = height;
+        if self.num_containers > 0 {
+            if self.height < old_height {
+                if self.height == 0 {
+                    self.top = self.selection;
+                } else {
+                    self.top += self.selection.saturating_sub(self.top + self.height - 1);
+                }
+            } else if self.height > old_height {
+                self.top = self
+                    .top
+                    .saturating_sub((self.top + self.height).saturating_sub(self.num_containers));
+            }
+        }
+        self.validate();
+    }
+
+    fn handle_num_containers(&mut self, num_containers: usize) {
+        self.num_containers = num_containers;
+
+        if num_containers == 0 {
+            self.selection = 0;
+            self.top = 0;
+        } else {
+            if self.selection >= num_containers {
+                self.selection = num_containers - 1;
+            }
+            self.top = self
+                .top
+                .saturating_sub((self.top + self.height).saturating_sub(num_containers));
+        }
+        self.validate();
+    }
+}
+
+#[derive(Default)]
+struct App {
+    containers: Vec<Container>,
+    viewport: Viewport,
+}
+
+impl App {
+    fn block() -> Block<'static> {
+        Block::bordered().title("Containers")
     }
 
     fn handle_key_event(&mut self, key: KeyCode) -> ControlFlow<()> {
@@ -80,10 +119,10 @@ impl App {
                 return ControlFlow::Break(());
             }
             KeyCode::Char('k') | KeyCode::Up => {
-                self.handle_up();
+                self.viewport.handle_up();
             }
             KeyCode::Char('j') | KeyCode::Down => {
-                self.handle_down();
+                self.viewport.handle_down();
             }
             _ => {}
         }
@@ -91,42 +130,13 @@ impl App {
     }
 
     fn handle_resize(&mut self, height: u16) {
-        let old_height = self.viewport_height;
-        self.viewport_height = usize::from(Self::block().inner(Rect::new(0, 0, 1, height)).height);
-        let num_containers = self.containers.len();
-        if num_containers > 0 {
-            if self.viewport_height < old_height {
-                if self.viewport_height == 0 {
-                    self.viewport_top = self.selection;
-                } else {
-                    self.viewport_top += self
-                        .selection
-                        .saturating_sub(self.viewport_top + self.viewport_height - 1);
-                }
-            } else if self.viewport_height > old_height {
-                self.viewport_top = self.viewport_top.saturating_sub(
-                    (self.viewport_top + self.viewport_height).saturating_sub(num_containers),
-                );
-            }
-        }
-        self.validate_selection_and_viewport();
+        let viewport_height = Self::block().inner(Rect::new(0, 0, 1, height)).height;
+        self.viewport.handle_resize(viewport_height.into());
     }
 
     fn handle_containers(&mut self, containers: Vec<Container>) {
         self.containers = containers;
-        let num_containers = self.containers.len();
-
-        if num_containers == 0 {
-            self.selection = 0;
-            self.viewport_top = 0;
-        } else {
-            if self.selection >= num_containers {
-                self.selection = num_containers - 1;
-            }
-            self.viewport_top = self.viewport_top.saturating_sub(
-                (self.viewport_top + self.viewport_height).saturating_sub(num_containers),
-            );
-        }
+        self.viewport.handle_num_containers(self.containers.len());
     }
 }
 
@@ -139,15 +149,16 @@ impl Widget for &mut App {
                 .block(App::block())
                 .render(area, buf);
         } else {
-            if self.viewport_height != usize::from(inner_area.height) {
+            // We may not always get the resize event before some other event that causes a redraw.
+            if self.viewport.height != usize::from(inner_area.height) {
                 self.handle_resize(area.height);
             }
 
             let empty_rows =
-                (self.viewport_top + self.viewport_height).saturating_sub(num_containers);
-            let container_rows = self.viewport_height - empty_rows;
-            let selection_offset_in_viewport = self.selection - self.viewport_top;
-            let items = self.containers[self.viewport_top..self.viewport_top + container_rows]
+                (self.viewport.top + self.viewport.height).saturating_sub(num_containers);
+            let container_rows = self.viewport.height - empty_rows;
+            let selection_offset_in_viewport = self.viewport.selection - self.viewport.top;
+            let items = self.containers[self.viewport.top..self.viewport.top + container_rows]
                 .iter()
                 .enumerate()
                 .map(|(offset, container)| {
