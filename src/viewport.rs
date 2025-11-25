@@ -69,7 +69,7 @@ impl Viewport {
         self.scroll_up_n_lines(1);
     }
 
-    fn scroll_down_n_lines(&mut self, n: usize) {
+    pub fn scroll_down_n_lines(&mut self, n: usize) {
         // First, try to scroll the viewport down by as much as possible without it overhanging.
         let to_scroll = cmp::min(
             n,

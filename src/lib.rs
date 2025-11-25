@@ -61,6 +61,10 @@ impl App {
                 self.viewport
                     .scroll_up_n_lines(cmp::max(1, self.viewport.height().saturating_sub(2)));
             }
+            (KeyCode::Char('d'), KeyModifiers::CONTROL) => {
+                self.viewport
+                    .scroll_down_n_lines(cmp::max(1, self.viewport.height() / 2));
+            }
             _ => {}
         }
         ControlFlow::Continue(())
