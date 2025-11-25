@@ -11,7 +11,7 @@ use ratatui::{
     prelude::*,
     widgets::{Block, List, ListItem, Paragraph},
 };
-use std::{io, ops::ControlFlow, panic, thread};
+use std::{cmp, io, ops::ControlFlow, panic, thread};
 use tokio::sync::mpsc;
 use viewport::Viewport;
 
@@ -52,6 +52,10 @@ impl App {
             }
             (KeyCode::Char('y'), KeyModifiers::CONTROL) => {
                 self.viewport.scroll_up_one_line();
+            }
+            (KeyCode::Char('u'), KeyModifiers::CONTROL) => {
+                self.viewport
+                    .scroll_up_n_lines(cmp::max(1, self.viewport.height() / 2));
             }
             _ => {}
         }

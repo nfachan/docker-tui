@@ -53,7 +53,7 @@ impl Viewport {
         self.validate();
     }
 
-    fn scroll_up_n_lines(&mut self, n: usize) {
+    pub fn scroll_up_n_lines(&mut self, n: usize) {
         // First, try to scroll the viewport up by as much as possible.
         let to_scroll = cmp::min(n, self.top);
         self.top -= to_scroll;
