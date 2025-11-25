@@ -46,6 +46,23 @@ impl Viewport {
         self.validate();
     }
 
+    #[allow(unused)]
+    pub fn scroll_down_one_line(&mut self) {
+        if self.top + cmp::max(self.height, 1) < self.num_containers {
+            // We have room to scroll the viewport down by one. We may have to move the
+            // selection down by one as well in order to keep it in the viewport.
+            self.top += 1;
+            if self.selection < self.top {
+                self.selection += 1;
+            }
+        } else if self.selection + 1 < self.num_containers {
+            // We couldn't move the viewport down by one, but we can still move the selection
+            // down by one.
+            self.selection += 1;
+        }
+        self.validate();
+    }
+
     pub fn change_viewport_height(&mut self, height: usize) {
         let old_height = self.height;
         self.height = height;
@@ -180,6 +197,70 @@ mod tests {
     #[case(viewport!(3, 2, 1, 2), viewport!(3, 2, 1, 2))]
     fn move_selection_down_one_line(#[case] mut before: Viewport, #[case] after: Viewport) {
         before.move_selection_down_one_line();
+        assert_eq!(before, after);
+    }
+
+    #[rstest]
+    #[case(viewport!(0, 0, 0, 0), viewport!(0, 0, 0, 0))]
+    #[case(viewport!(0, 0, 0, 1), viewport!(0, 0, 0, 1))]
+    #[case(viewport!(1, 0, 0, 0), viewport!(1, 0, 0, 0))]
+    #[case(viewport!(1, 0, 0, 1), viewport!(1, 0, 0, 1))]
+    #[case(viewport!(1, 0, 0, 2), viewport!(1, 0, 0, 2))]
+    #[case(viewport!(2, 0, 0, 0), viewport!(2, 1, 1, 0))]
+    #[case(viewport!(2, 0, 0, 1), viewport!(2, 1, 1, 1))]
+    #[case(viewport!(2, 0, 0, 2), viewport!(2, 1, 0, 2))]
+    #[case(viewport!(2, 0, 0, 3), viewport!(2, 1, 0, 3))]
+    #[case(viewport!(2, 1, 1, 0), viewport!(2, 1, 1, 0))]
+    #[case(viewport!(2, 1, 1, 1), viewport!(2, 1, 1, 1))]
+    #[case(viewport!(2, 1, 0, 2), viewport!(2, 1, 0, 2))]
+    #[case(viewport!(2, 1, 0, 3), viewport!(2, 1, 0, 3))]
+    #[case(viewport!(3, 0, 0, 0), viewport!(3, 1, 1, 0))]
+    #[case(viewport!(3, 0, 0, 1), viewport!(3, 1, 1, 1))]
+    #[case(viewport!(3, 0, 0, 2), viewport!(3, 1, 1, 2))]
+    #[case(viewport!(3, 0, 0, 3), viewport!(3, 1, 0, 3))]
+    #[case(viewport!(3, 0, 0, 4), viewport!(3, 1, 0, 4))]
+    #[case(viewport!(3, 1, 1, 0), viewport!(3, 2, 2, 0))]
+    #[case(viewport!(3, 1, 1, 1), viewport!(3, 2, 2, 1))]
+    #[case(viewport!(3, 1, 0, 2), viewport!(3, 1, 1, 2))]
+    #[case(viewport!(3, 1, 1, 2), viewport!(3, 2, 1, 2))]
+    #[case(viewport!(3, 1, 0, 3), viewport!(3, 2, 0, 3))]
+    #[case(viewport!(3, 1, 0, 4), viewport!(3, 2, 0, 4))]
+    #[case(viewport!(3, 2, 2, 0), viewport!(3, 2, 2, 0))]
+    #[case(viewport!(3, 2, 2, 1), viewport!(3, 2, 2, 1))]
+    #[case(viewport!(3, 2, 1, 2), viewport!(3, 2, 1, 2))]
+    #[case(viewport!(3, 2, 0, 3), viewport!(3, 2, 0, 3))]
+    #[case(viewport!(3, 2, 0, 4), viewport!(3, 2, 0, 4))]
+    #[case(viewport!(4, 0, 0, 0), viewport!(4, 1, 1, 0))]
+    #[case(viewport!(4, 0, 0, 1), viewport!(4, 1, 1, 1))]
+    #[case(viewport!(4, 0, 0, 2), viewport!(4, 1, 1, 2))]
+    #[case(viewport!(4, 0, 0, 3), viewport!(4, 1, 1, 3))]
+    #[case(viewport!(4, 0, 0, 4), viewport!(4, 1, 0, 4))]
+    #[case(viewport!(4, 0, 0, 5), viewport!(4, 1, 0, 5))]
+    #[case(viewport!(4, 1, 1, 0), viewport!(4, 2, 2, 0))]
+    #[case(viewport!(4, 1, 1, 1), viewport!(4, 2, 2, 1))]
+    #[case(viewport!(4, 1, 0, 2), viewport!(4, 1, 1, 2))]
+    #[case(viewport!(4, 1, 1, 2), viewport!(4, 2, 2, 2))]
+    #[case(viewport!(4, 1, 0, 3), viewport!(4, 1, 1, 3))]
+    #[case(viewport!(4, 1, 1, 3), viewport!(4, 2, 1, 3))]
+    #[case(viewport!(4, 1, 0, 4), viewport!(4, 2, 0, 4))]
+    #[case(viewport!(4, 1, 0, 5), viewport!(4, 2, 0, 5))]
+    #[case(viewport!(4, 2, 2, 0), viewport!(4, 3, 3, 0))]
+    #[case(viewport!(4, 2, 2, 1), viewport!(4, 3, 3, 1))]
+    #[case(viewport!(4, 2, 1, 2), viewport!(4, 2, 2, 2))]
+    #[case(viewport!(4, 2, 2, 2), viewport!(4, 3, 2, 2))]
+    #[case(viewport!(4, 2, 0, 3), viewport!(4, 2, 1, 3))]
+    #[case(viewport!(4, 2, 1, 3), viewport!(4, 3, 1, 3))]
+    #[case(viewport!(4, 2, 0, 4), viewport!(4, 3, 0, 4))]
+    #[case(viewport!(4, 2, 0, 5), viewport!(4, 3, 0, 5))]
+    #[case(viewport!(4, 3, 3, 0), viewport!(4, 3, 3, 0))]
+    #[case(viewport!(4, 3, 3, 1), viewport!(4, 3, 3, 1))]
+    #[case(viewport!(4, 3, 1, 2), viewport!(4, 3, 2, 2))]
+    #[case(viewport!(4, 3, 2, 2), viewport!(4, 3, 2, 2))]
+    #[case(viewport!(4, 3, 1, 3), viewport!(4, 3, 1, 3))]
+    #[case(viewport!(4, 3, 0, 4), viewport!(4, 3, 0, 4))]
+    #[case(viewport!(4, 3, 0, 5), viewport!(4, 3, 0, 5))]
+    fn scroll_down_one_line(#[case] mut before: Viewport, #[case] after: Viewport) {
+        before.scroll_down_one_line();
         assert_eq!(before, after);
     }
 
