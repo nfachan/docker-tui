@@ -28,7 +28,7 @@ impl Viewport {
         }
     }
 
-    pub fn handle_up(&mut self) {
+    pub fn move_selection_up_one_line(&mut self) {
         self.selection = self.selection.saturating_sub(1);
         if self.top > self.selection {
             self.top -= 1;
@@ -36,7 +36,7 @@ impl Viewport {
         self.validate();
     }
 
-    pub fn handle_down(&mut self) {
+    pub fn move_selection_down_one_line(&mut self) {
         self.selection = cmp::min(self.num_containers.saturating_sub(1), self.selection + 1);
         if self.height == 0 {
             self.top = self.selection;
@@ -147,8 +147,8 @@ mod tests {
     #[case(viewport!(3, 1, 0, 2), viewport!(3, 0, 0, 2))]
     #[case(viewport!(3, 1, 1, 2), viewport!(3, 0, 0, 2))]
     #[case(viewport!(3, 2, 1, 2), viewport!(3, 1, 1, 2))]
-    fn handle_up(#[case] mut before: Viewport, #[case] after: Viewport) {
-        before.handle_up();
+    fn move_selection_up_one_line(#[case] mut before: Viewport, #[case] after: Viewport) {
+        before.move_selection_up_one_line();
         assert_eq!(before, after);
     }
 
@@ -174,8 +174,8 @@ mod tests {
     #[case(viewport!(3, 1, 0, 2), viewport!(3, 2, 1, 2))]
     #[case(viewport!(3, 1, 1, 2), viewport!(3, 2, 1, 2))]
     #[case(viewport!(3, 2, 1, 2), viewport!(3, 2, 1, 2))]
-    fn handle_down(#[case] mut before: Viewport, #[case] after: Viewport) {
-        before.handle_down();
+    fn move_selection_down_one_line(#[case] mut before: Viewport, #[case] after: Viewport) {
+        before.move_selection_down_one_line();
         assert_eq!(before, after);
     }
 

@@ -42,10 +42,10 @@ impl App {
                 return ControlFlow::Break(());
             }
             KeyCode::Char('k') | KeyCode::Up => {
-                self.viewport.handle_up();
+                self.viewport.move_selection_up_one_line();
             }
             KeyCode::Char('j') | KeyCode::Down => {
-                self.viewport.handle_down();
+                self.viewport.move_selection_down_one_line();
             }
             _ => {}
         }
