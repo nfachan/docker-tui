@@ -54,7 +54,7 @@ impl App {
 
     fn handle_resize(&mut self, height: u16) {
         let viewport_height = Self::block().inner(Rect::new(0, 0, 1, height)).height;
-        self.viewport.handle_resize(viewport_height.into());
+        self.viewport.change_viewport_height(viewport_height.into());
     }
 
     fn handle_containers(&mut self, containers: Vec<Container>) {

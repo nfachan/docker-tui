@@ -46,7 +46,7 @@ impl Viewport {
         self.validate();
     }
 
-    pub fn handle_resize(&mut self, height: usize) {
+    pub fn change_viewport_height(&mut self, height: usize) {
         let old_height = self.height;
         self.height = height;
         if self.num_containers > 0 {
@@ -303,12 +303,12 @@ mod tests {
     #[case(viewport!(4, 2, 0, 3), 2, viewport!(4, 2, 1, 2))]
     #[case(viewport!(4, 2, 1, 3), 2, viewport!(4, 2, 1, 2))]
     #[case(viewport!(4, 3, 1, 3), 2, viewport!(4, 3, 2, 2))]
-    fn handle_resize(
+    fn change_viewport_height(
         #[case] mut before: Viewport,
         #[case] resize_to: usize,
         #[case] after: Viewport,
     ) {
-        before.handle_resize(resize_to);
+        before.change_viewport_height(resize_to);
         assert_eq!(before, after);
     }
 }
