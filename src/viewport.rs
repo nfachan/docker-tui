@@ -65,7 +65,7 @@ impl Viewport {
         self.validate();
     }
 
-    pub fn handle_num_containers(&mut self, num_containers: usize) {
+    pub fn change_num_containers(&mut self, num_containers: usize) {
         self.num_containers = num_containers;
 
         if num_containers == 0 {

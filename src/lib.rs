@@ -59,7 +59,7 @@ impl App {
 
     fn handle_containers(&mut self, containers: Vec<Container>) {
         self.containers = containers;
-        self.viewport.handle_num_containers(self.containers.len());
+        self.viewport.change_num_containers(self.containers.len());
     }
 }
 
