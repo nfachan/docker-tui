@@ -7,7 +7,6 @@ pub struct Viewport {
     num_containers: usize,
     #[getter(skip)]
     selection: usize,
-    #[getter(skip)]
     top: usize,
     height: usize,
 }

@@ -1,8 +1,9 @@
 use crate::{docker::Container, viewport::Viewport};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::{
+    layout::Margin,
     prelude::*,
-    widgets::{Block, List, ListItem, Paragraph},
+    widgets::{Block, List, ListItem, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState},
 };
 use std::{cmp, ops::ControlFlow};
 
@@ -69,16 +70,19 @@ impl ContainerList {
 impl Widget for &mut ContainerList {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let block = ContainerList::block();
+
         if self.containers.is_empty() {
+            // Handle special case of no containers.
             Paragraph::new("no containers")
                 .block(block)
                 .render(area, buf);
         } else {
-            // We may not always get the resize event before some other event that causes a redraw.
+            // We may not always get a resize event before some other event that causes a redraw.
             if self.viewport.height() != usize::from(block.inner(area).height) {
                 self.handle_resize(area.height);
             }
 
+            // Select the subset of list items we are going to render.
             let items = self.viewport.select_for_render(
                 &self.containers[..],
                 |container| ListItem::new(format!("  {} - {}", container.name, container.status)),
@@ -87,7 +91,27 @@ impl Widget for &mut ContainerList {
                         .add_modifier(Modifier::REVERSED)
                 },
             );
+
+            // Render the list.
             Widget::render(List::new(items).block(block), area, buf);
+
+            // Possibly render a scrollbar.
+            if self.viewport.top() != 0 || self.viewport.height() < self.containers.len() {
+                Scrollbar::new(ScrollbarOrientation::VerticalRight)
+                    .begin_symbol(None)
+                    .end_symbol(None)
+                    .track_symbol(None)
+                    .render(
+                        area.inner(Margin {
+                            vertical: 1,
+                            horizontal: 0,
+                        }),
+                        buf,
+                        &mut ScrollbarState::default()
+                            .content_length(self.containers.len() + 1 - self.viewport.height())
+                            .position(self.viewport.top()),
+                    );
+            }
         }
     }
 }
