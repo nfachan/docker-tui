@@ -13,19 +13,26 @@ pub struct Viewport {
 }
 
 impl Viewport {
+    fn is_valid(&self) -> bool {
+        self.num_containers == 0 && self.selection == 0 && self.top == 0
+            || self.num_containers > 0
+                && self.selection < self.num_containers
+                && (self.top + cmp::max(self.height, 1) <= self.num_containers || self.top == 0)
+                && self.top <= self.selection
+                && self.selection < self.top + cmp::max(self.height, 1)
+    }
+
     fn validate(&self) {
         if self.num_containers == 0 {
             assert_eq!(self.selection, 0);
             assert_eq!(self.top, 0);
-        } else if self.height == 0 {
-            assert!(self.selection < self.num_containers);
-            assert_eq!(self.top, self.selection);
         } else {
             assert!(self.selection < self.num_containers);
+            assert!(self.top + cmp::max(self.height, 1) <= self.num_containers || self.top == 0);
             assert!(self.top <= self.selection);
-            assert!(self.selection < self.top + self.height);
-            assert!(self.top + self.height <= self.num_containers || self.top == 0);
+            assert!(self.selection < self.top + cmp::max(self.height, 1));
         }
+        assert!(self.is_valid());
     }
 
     pub fn move_selection_up_one_line(&mut self) {
@@ -355,6 +362,29 @@ mod tests {
     fn scroll_up_one_line(#[case] mut before: Viewport, #[case] after: Viewport) {
         before.scroll_up_one_line();
         assert_eq!(before, after);
+    }
+
+    #[test]
+    fn scroll_up_n_lines() {
+        for num_containers in 0..10 {
+            for selection in 0..10 {
+                for top in 0..10 {
+                    for height in 0..10 {
+                        let initial_viewport = viewport!(num_containers, selection, top, height);
+                        if !initial_viewport.is_valid() {
+                            continue;
+                        }
+                        let mut viewport = initial_viewport.clone();
+                        for n in 1..10 {
+                            viewport.scroll_up_one_line();
+                            let mut scrolled_viewport = initial_viewport.clone();
+                            scrolled_viewport.scroll_up_n_lines(n);
+                            assert_eq!(viewport, scrolled_viewport);
+                        }
+                    }
+                }
+            }
+        }
     }
 
     #[rstest]
