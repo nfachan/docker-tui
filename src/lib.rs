@@ -48,10 +48,10 @@ impl App {
                 self.viewport.move_selection_down_one_line();
             }
             (KeyCode::Char('e'), KeyModifiers::CONTROL) => {
-                self.viewport.scroll_down_one_line();
+                self.viewport.scroll_down_n_lines(1);
             }
             (KeyCode::Char('y'), KeyModifiers::CONTROL) => {
-                self.viewport.scroll_up_one_line();
+                self.viewport.scroll_up_n_lines(1);
             }
             (KeyCode::Char('u'), KeyModifiers::CONTROL) => {
                 self.viewport

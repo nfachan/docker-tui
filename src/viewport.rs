@@ -65,10 +65,6 @@ impl Viewport {
         self.validate();
     }
 
-    pub fn scroll_up_one_line(&mut self) {
-        self.scroll_up_n_lines(1);
-    }
-
     pub fn scroll_down_n_lines(&mut self, n: usize) {
         // First, try to scroll the viewport down by as much as possible without it overhanging.
         let to_scroll = cmp::min(
@@ -86,10 +82,6 @@ impl Viewport {
         );
 
         self.validate();
-    }
-
-    pub fn scroll_down_one_line(&mut self) {
-        self.scroll_down_n_lines(1);
     }
 
     pub fn change_viewport_height(&mut self, height: usize) {
@@ -360,7 +352,7 @@ mod tests {
     #[case(viewport!(4, 3, 0, 4), viewport!(4, 2, 0, 4))]
     #[case(viewport!(4, 3, 0, 5), viewport!(4, 2, 0, 5))]
     fn scroll_up_one_line(#[case] mut before: Viewport, #[case] after: Viewport) {
-        before.scroll_up_one_line();
+        before.scroll_up_n_lines(1);
         assert_eq!(before, after);
     }
 
@@ -376,7 +368,7 @@ mod tests {
                         }
                         let mut viewport = initial_viewport.clone();
                         for n in 1..10 {
-                            viewport.scroll_up_one_line();
+                            viewport.scroll_up_n_lines(1);
                             let mut scrolled_viewport = initial_viewport.clone();
                             scrolled_viewport.scroll_up_n_lines(n);
                             assert_eq!(viewport, scrolled_viewport);
@@ -446,7 +438,7 @@ mod tests {
     #[case(viewport!(4, 3, 0, 4), viewport!(4, 3, 0, 4))]
     #[case(viewport!(4, 3, 0, 5), viewport!(4, 3, 0, 5))]
     fn scroll_down_one_line(#[case] mut before: Viewport, #[case] after: Viewport) {
-        before.scroll_down_one_line();
+        before.scroll_down_n_lines(1);
         assert_eq!(before, after);
     }
 
@@ -462,7 +454,7 @@ mod tests {
                         }
                         let mut viewport = initial_viewport.clone();
                         for n in 1..10 {
-                            viewport.scroll_down_one_line();
+                            viewport.scroll_down_n_lines(1);
                             let mut scrolled_viewport = initial_viewport.clone();
                             scrolled_viewport.scroll_down_n_lines(n);
                             assert_eq!(viewport, scrolled_viewport);
