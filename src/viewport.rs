@@ -450,6 +450,29 @@ mod tests {
         assert_eq!(before, after);
     }
 
+    #[test]
+    fn scroll_down_n_lines() {
+        for num_containers in 0..10 {
+            for selection in 0..10 {
+                for top in 0..10 {
+                    for height in 0..10 {
+                        let initial_viewport = viewport!(num_containers, selection, top, height);
+                        if !initial_viewport.is_valid() {
+                            continue;
+                        }
+                        let mut viewport = initial_viewport.clone();
+                        for n in 1..10 {
+                            viewport.scroll_down_one_line();
+                            let mut scrolled_viewport = initial_viewport.clone();
+                            scrolled_viewport.scroll_down_n_lines(n);
+                            assert_eq!(viewport, scrolled_viewport);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     #[rstest]
     // Height zero to height zero.
     #[case(viewport!(0, 0, 0, 0), 0, viewport!(0, 0, 0, 0))]
