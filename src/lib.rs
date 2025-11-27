@@ -47,9 +47,6 @@ impl App {
             (KeyCode::Char('j') | KeyCode::Down, _) => {
                 self.viewport.move_selection_down_one_line();
             }
-            (KeyCode::Char('e'), KeyModifiers::CONTROL) => {
-                self.viewport.scroll_down_n_lines(1);
-            }
             (KeyCode::Char('y'), KeyModifiers::CONTROL) => {
                 self.viewport.scroll_up_n_lines(1);
             }
@@ -60,6 +57,9 @@ impl App {
             (KeyCode::Char('b'), KeyModifiers::CONTROL) => {
                 self.viewport
                     .scroll_up_n_lines(cmp::max(1, self.viewport.height().saturating_sub(2)));
+            }
+            (KeyCode::Char('e'), KeyModifiers::CONTROL) => {
+                self.viewport.scroll_down_n_lines(1);
             }
             (KeyCode::Char('d'), KeyModifiers::CONTROL) => {
                 self.viewport
