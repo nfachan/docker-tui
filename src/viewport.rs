@@ -46,20 +46,20 @@ impl Viewport {
         self.validate();
     }
 
-    pub fn scroll_up_one_line(&mut self) {
-        if self.top > 0 {
-            // We have room to scroll the viewport up by one. We may have to move the
-            // selection up by one as well in order to keep it in the viewport.
-            self.top -= 1;
-            if self.selection >= self.top + cmp::max(self.height, 1) {
-                self.selection -= 1;
-            }
-        } else if self.selection > 0 {
-            // We couldn't move the viewport up by one, but we can still move the selection up
-            // by one.
-            self.selection -= 1;
-        }
+    fn scroll_up_n_lines(&mut self, n: usize) {
+        // First, try to scroll the viewport up by as much as possible.
+        let to_scroll = cmp::min(n, self.top);
+        self.top -= to_scroll;
+        self.selection = cmp::min(self.selection, self.top + self.height.saturating_sub(1));
+
+        // Second, move the viewport up if we still need to scroll more.
+        self.selection = self.selection.saturating_sub(n - to_scroll);
+
         self.validate();
+    }
+
+    pub fn scroll_up_one_line(&mut self) {
+        self.scroll_up_n_lines(1);
     }
 
     fn scroll_down_n_lines(&mut self, n: usize) {
