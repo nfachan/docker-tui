@@ -96,7 +96,10 @@ impl ContainerList {
             (KeyCode::Char('f'), KeyModifiers::CONTROL) => {
                 self.handle_command(Command::ScrollDownFullPage)
             }
-            _ => ControlFlow::Continue(()),
+            _ => {
+                print!("\x07"); // ASCII BEL to STDOUT
+                ControlFlow::Continue(())
+            }
         }
     }
 
