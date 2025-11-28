@@ -7,6 +7,18 @@ use ratatui::{
 };
 use std::{cmp, ops::ControlFlow};
 
+enum Command {
+    Quit,
+    MoveSelectionUpOneLine,
+    MoveSelectionDownOneLine,
+    ScrollUpOneLine,
+    ScrollUpHalfPage,
+    ScrollUpFullPage,
+    ScrollDownOneLine,
+    ScrollDownHalfPage,
+    ScrollDownFullPage,
+}
+
 #[derive(Default)]
 pub struct ContainerList {
     containers: Vec<Container>,
@@ -18,42 +30,74 @@ impl ContainerList {
         Block::bordered().title("Containers")
     }
 
-    pub fn handle_key_event(&mut self, key_event: (KeyCode, KeyModifiers)) -> ControlFlow<()> {
-        match key_event {
-            (KeyCode::Char('q') | KeyCode::Esc, KeyModifiers::NONE) => {
+    fn handle_command(&mut self, command: Command) -> ControlFlow<()> {
+        match command {
+            Command::Quit => {
                 return ControlFlow::Break(());
             }
-            (KeyCode::Char('k') | KeyCode::Up, KeyModifiers::NONE) => {
+            Command::MoveSelectionUpOneLine => {
                 self.viewport.move_selection_up_one_line();
             }
-            (KeyCode::Char('j') | KeyCode::Down, KeyModifiers::NONE) => {
+            Command::MoveSelectionDownOneLine => {
                 self.viewport.move_selection_down_one_line();
             }
-            (KeyCode::Char('y'), KeyModifiers::CONTROL) => {
+            Command::ScrollUpOneLine => {
                 self.viewport.scroll_up_n_lines(1);
             }
-            (KeyCode::Char('u'), KeyModifiers::CONTROL) => {
+            Command::ScrollUpHalfPage => {
                 self.viewport
                     .scroll_up_n_lines(cmp::max(1, self.viewport.height() / 2));
             }
-            (KeyCode::Char('b'), KeyModifiers::CONTROL) => {
+            Command::ScrollUpFullPage => {
                 self.viewport
                     .scroll_up_n_lines(cmp::max(1, self.viewport.height().saturating_sub(2)));
             }
-            (KeyCode::Char('e'), KeyModifiers::CONTROL) => {
+            Command::ScrollDownOneLine => {
                 self.viewport.scroll_down_n_lines(1);
             }
-            (KeyCode::Char('d'), KeyModifiers::CONTROL) => {
+            Command::ScrollDownHalfPage => {
                 self.viewport
                     .scroll_down_n_lines(cmp::max(1, self.viewport.height() / 2));
             }
-            (KeyCode::Char('f'), KeyModifiers::CONTROL) => {
+            Command::ScrollDownFullPage => {
                 self.viewport
                     .scroll_down_n_lines(cmp::max(1, self.viewport.height().saturating_sub(2)));
             }
-            _ => {}
         }
         ControlFlow::Continue(())
+    }
+
+    pub fn handle_key_event(&mut self, key_event: (KeyCode, KeyModifiers)) -> ControlFlow<()> {
+        match key_event {
+            (KeyCode::Char('q') | KeyCode::Esc, KeyModifiers::NONE) => {
+                self.handle_command(Command::Quit)
+            }
+            (KeyCode::Char('k') | KeyCode::Up, KeyModifiers::NONE) => {
+                self.handle_command(Command::MoveSelectionUpOneLine)
+            }
+            (KeyCode::Char('j') | KeyCode::Down, KeyModifiers::NONE) => {
+                self.handle_command(Command::MoveSelectionDownOneLine)
+            }
+            (KeyCode::Char('y'), KeyModifiers::CONTROL) => {
+                self.handle_command(Command::ScrollUpOneLine)
+            }
+            (KeyCode::Char('u'), KeyModifiers::CONTROL) => {
+                self.handle_command(Command::ScrollUpHalfPage)
+            }
+            (KeyCode::Char('b'), KeyModifiers::CONTROL) => {
+                self.handle_command(Command::ScrollUpFullPage)
+            }
+            (KeyCode::Char('e'), KeyModifiers::CONTROL) => {
+                self.handle_command(Command::ScrollDownOneLine)
+            }
+            (KeyCode::Char('d'), KeyModifiers::CONTROL) => {
+                self.handle_command(Command::ScrollDownHalfPage)
+            }
+            (KeyCode::Char('f'), KeyModifiers::CONTROL) => {
+                self.handle_command(Command::ScrollDownFullPage)
+            }
+            _ => ControlFlow::Continue(()),
+        }
     }
 
     pub fn handle_resize(&mut self, height: u16) {
