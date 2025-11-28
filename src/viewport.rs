@@ -100,7 +100,6 @@ impl Viewport {
         self.validate();
     }
 
-    #[cfg(test)]
     fn scroll_line_to_top(&mut self, line: usize) {
         // Put line at the top of the viewport, then back up as necessary to ensure we're not
         // overhanding the bottom.
@@ -109,8 +108,7 @@ impl Viewport {
         self.validate();
     }
 
-    #[cfg(test)]
-    fn scroll_selection_to_top(&mut self) {
+    pub fn scroll_selection_to_top(&mut self) {
         self.scroll_line_to_top(self.selection);
     }
 

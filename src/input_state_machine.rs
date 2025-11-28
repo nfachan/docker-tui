@@ -59,7 +59,6 @@ where
         self
     }
 
-    #[allow(dead_code)]
     pub fn multikey_binding(mut self, keys: impl IntoIterator<Item = K>, value: V) -> Self {
         let keys = Vec::from_iter(keys);
         let num_keys = keys.len();
