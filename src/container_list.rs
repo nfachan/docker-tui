@@ -68,14 +68,14 @@ impl ContainerList {
 
 impl Widget for &mut ContainerList {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        let inner_area = ContainerList::block().inner(area);
+        let block = ContainerList::block();
         if self.containers.is_empty() {
             Paragraph::new("no containers")
-                .block(ContainerList::block())
+                .block(block)
                 .render(area, buf);
         } else {
             // We may not always get the resize event before some other event that causes a redraw.
-            if self.viewport.height() != usize::from(inner_area.height) {
+            if self.viewport.height() != usize::from(block.inner(area).height) {
                 self.handle_resize(area.height);
             }
 
@@ -87,7 +87,7 @@ impl Widget for &mut ContainerList {
                         .add_modifier(Modifier::REVERSED)
                 },
             );
-            Widget::render(List::new(items).block(ContainerList::block()), area, buf);
+            Widget::render(List::new(items).block(block), area, buf);
         }
     }
 }
