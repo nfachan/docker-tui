@@ -1,17 +1,34 @@
 use derive_getters::Getters;
 use std::cmp;
 
+#[derive(Debug, Eq, PartialEq)]
+pub struct ScrollbarParameters {
+    pub total_items: usize,
+    pub top_item: usize,
+}
+
 #[derive(Clone, Debug, Default, Getters, Eq, PartialEq)]
 pub struct Viewport {
     #[getter(skip)]
     num_containers: usize,
     #[getter(skip)]
     selection: usize,
+    #[getter(skip)]
     top: usize,
     height: usize,
 }
 
 impl Viewport {
+    pub fn scrollbar(&self) -> Option<ScrollbarParameters> {
+        (self.top != 0 || cmp::max(self.height, 1) < self.num_containers).then(|| {
+            assert!(self.num_containers + 1 > cmp::max(self.height, 1));
+            ScrollbarParameters {
+                total_items: self.num_containers + 1 - cmp::max(self.height, 1),
+                top_item: self.top,
+            }
+        })
+    }
+
     fn is_valid(&self) -> bool {
         self.num_containers == 0 && self.selection == 0 && self.top == 0
             || self.num_containers > 0
@@ -164,6 +181,74 @@ mod tests {
                 height: $height,
             }
         };
+    }
+
+    #[rstest]
+    #[case(viewport!(0, 0, 0, 0), None)]
+    #[case(viewport!(0, 0, 0, 1), None)]
+    #[case(viewport!(1, 0, 0, 0), None)]
+    #[case(viewport!(1, 0, 0, 1), None)]
+    #[case(viewport!(1, 0, 0, 2), None)]
+    #[case(viewport!(2, 0, 0, 0), Some((2, 0)))]
+    #[case(viewport!(2, 0, 0, 1), Some((2, 0)))]
+    #[case(viewport!(2, 0, 0, 2), None)]
+    #[case(viewport!(2, 0, 0, 3), None)]
+    #[case(viewport!(2, 1, 1, 0), Some((2, 1)))]
+    #[case(viewport!(2, 1, 1, 1), Some((2, 1)))]
+    #[case(viewport!(2, 1, 0, 2), None)]
+    #[case(viewport!(2, 1, 0, 3), None)]
+    #[case(viewport!(3, 0, 0, 0), Some((3, 0)))]
+    #[case(viewport!(3, 0, 0, 1), Some((3, 0)))]
+    #[case(viewport!(3, 0, 0, 2), Some((2, 0)))]
+    #[case(viewport!(3, 0, 0, 3), None)]
+    #[case(viewport!(3, 0, 0, 4), None)]
+    #[case(viewport!(3, 1, 1, 0), Some((3, 1)))]
+    #[case(viewport!(3, 1, 1, 1), Some((3, 1)))]
+    #[case(viewport!(3, 1, 0, 2), Some((2, 0)))]
+    #[case(viewport!(3, 1, 1, 2), Some((2, 1)))]
+    #[case(viewport!(3, 1, 0, 3), None)]
+    #[case(viewport!(3, 1, 0, 4), None)]
+    #[case(viewport!(3, 2, 2, 0), Some((3, 2)))]
+    #[case(viewport!(3, 2, 2, 1), Some((3, 2)))]
+    #[case(viewport!(3, 2, 1, 2), Some((2, 1)))]
+    #[case(viewport!(3, 2, 0, 3), None)]
+    #[case(viewport!(3, 2, 0, 4), None)]
+    #[case(viewport!(4, 0, 0, 0), Some((4, 0)))]
+    #[case(viewport!(4, 0, 0, 1), Some((4, 0)))]
+    #[case(viewport!(4, 0, 0, 2), Some((3, 0)))]
+    #[case(viewport!(4, 0, 0, 3), Some((2, 0)))]
+    #[case(viewport!(4, 0, 0, 4), None)]
+    #[case(viewport!(4, 0, 0, 5), None)]
+    #[case(viewport!(4, 1, 1, 0), Some((4, 1)))]
+    #[case(viewport!(4, 1, 1, 1), Some((4, 1)))]
+    #[case(viewport!(4, 1, 0, 2), Some((3, 0)))]
+    #[case(viewport!(4, 1, 1, 2), Some((3, 1)))]
+    #[case(viewport!(4, 1, 0, 3), Some((2, 0)))]
+    #[case(viewport!(4, 1, 1, 3), Some((2, 1)))]
+    #[case(viewport!(4, 1, 0, 4), None)]
+    #[case(viewport!(4, 1, 0, 5), None)]
+    #[case(viewport!(4, 2, 2, 0), Some((4, 2)))]
+    #[case(viewport!(4, 2, 2, 1), Some((4, 2)))]
+    #[case(viewport!(4, 2, 1, 2), Some((3, 1)))]
+    #[case(viewport!(4, 2, 2, 2), Some((3, 2)))]
+    #[case(viewport!(4, 2, 0, 3), Some((2, 0)))]
+    #[case(viewport!(4, 2, 1, 3), Some((2, 1)))]
+    #[case(viewport!(4, 2, 0, 4), None)]
+    #[case(viewport!(4, 2, 0, 5), None)]
+    #[case(viewport!(4, 3, 3, 0), Some((4, 3)))]
+    #[case(viewport!(4, 3, 3, 1), Some((4, 3)))]
+    #[case(viewport!(4, 3, 2, 2), Some((3, 2)))]
+    #[case(viewport!(4, 3, 1, 3), Some((2, 1)))]
+    #[case(viewport!(4, 3, 0, 4), None)]
+    #[case(viewport!(4, 3, 0, 5), None)]
+    fn scrollbar(#[case] viewport: Viewport, #[case] expected: Option<(usize, usize)>) {
+        assert_eq!(
+            viewport.scrollbar(),
+            expected.map(|(total_items, top_item)| ScrollbarParameters {
+                total_items,
+                top_item
+            })
+        );
     }
 
     #[rstest]

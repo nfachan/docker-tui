@@ -96,7 +96,7 @@ impl Widget for &mut ContainerList {
             Widget::render(List::new(items).block(block), area, buf);
 
             // Possibly render a scrollbar.
-            if self.viewport.top() != 0 || self.viewport.height() < self.containers.len() {
+            if let Some(scrollbar_parameters) = self.viewport.scrollbar() {
                 Scrollbar::new(ScrollbarOrientation::VerticalRight)
                     .begin_symbol(None)
                     .end_symbol(None)
@@ -108,8 +108,8 @@ impl Widget for &mut ContainerList {
                         }),
                         buf,
                         &mut ScrollbarState::default()
-                            .content_length(self.containers.len() + 1 - self.viewport.height())
-                            .position(self.viewport.top()),
+                            .content_length(scrollbar_parameters.total_items)
+                            .position(scrollbar_parameters.top_item),
                     );
             }
         }
