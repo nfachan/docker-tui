@@ -112,8 +112,7 @@ impl Viewport {
         self.scroll_line_to_top(self.selection);
     }
 
-    #[cfg(test)]
-    fn scroll_selection_to_bottom(&mut self) {
+    pub fn scroll_selection_to_bottom(&mut self) {
         self.scroll_line_to_top(self.selection.saturating_sub(cmp::max(self.height, 1) - 1));
     }
 

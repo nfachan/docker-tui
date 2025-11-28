@@ -23,6 +23,7 @@ enum Command {
     ScrollDownHalfPage,
     ScrollDownFullPage,
     ScrollSelectionToTop,
+    ScrollSelectionToBottom,
 }
 
 pub struct ContainerList {
@@ -83,6 +84,13 @@ impl Default for ContainerList {
                 ],
                 Command::ScrollSelectionToTop,
             )
+            .multikey_binding(
+                [
+                    (KeyCode::Char('z'), KeyModifiers::NONE),
+                    (KeyCode::Char('b'), KeyModifiers::NONE),
+                ],
+                Command::ScrollSelectionToBottom,
+            )
             .build();
         Self {
             containers: Vec::default(),
@@ -132,6 +140,9 @@ impl ContainerList {
             }
             Command::ScrollSelectionToTop => {
                 self.viewport.scroll_selection_to_top();
+            }
+            Command::ScrollSelectionToBottom => {
+                self.viewport.scroll_selection_to_bottom();
             }
         }
         ControlFlow::Continue(())
