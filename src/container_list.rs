@@ -1,5 +1,5 @@
 use crate::{docker::Container, viewport::Viewport};
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::{KeyCode, KeyModifiers};
 use ratatui::{
     layout::Margin,
     prelude::*,
@@ -18,8 +18,8 @@ impl ContainerList {
         Block::bordered().title("Containers")
     }
 
-    pub fn handle_key_event(&mut self, key_event: KeyEvent) -> ControlFlow<()> {
-        match (key_event.code, key_event.modifiers) {
+    pub fn handle_key_event(&mut self, key_event: (KeyCode, KeyModifiers)) -> ControlFlow<()> {
+        match key_event {
             (KeyCode::Char('q') | KeyCode::Esc, _) => {
                 return ControlFlow::Break(());
             }

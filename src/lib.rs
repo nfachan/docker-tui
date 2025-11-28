@@ -38,7 +38,9 @@ fn main_loop(docker: Docker, mut terminal: Terminal<impl Backend>) -> Result<()>
     while let Some(event) = receiver.blocking_recv() {
         match event {
             Event::Input(Ok(input::Event::Key(key))) if key.kind == KeyEventKind::Press => {
-                if let ControlFlow::Break(_) = container_list.handle_key_event(key) {
+                if let ControlFlow::Break(_) =
+                    container_list.handle_key_event((key.code, key.modifiers))
+                {
                     break;
                 }
             }
