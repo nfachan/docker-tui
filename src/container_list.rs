@@ -20,13 +20,13 @@ impl ContainerList {
 
     pub fn handle_key_event(&mut self, key_event: (KeyCode, KeyModifiers)) -> ControlFlow<()> {
         match key_event {
-            (KeyCode::Char('q') | KeyCode::Esc, _) => {
+            (KeyCode::Char('q') | KeyCode::Esc, KeyModifiers::NONE) => {
                 return ControlFlow::Break(());
             }
-            (KeyCode::Char('k') | KeyCode::Up, _) => {
+            (KeyCode::Char('k') | KeyCode::Up, KeyModifiers::NONE) => {
                 self.viewport.move_selection_up_one_line();
             }
-            (KeyCode::Char('j') | KeyCode::Down, _) => {
+            (KeyCode::Char('j') | KeyCode::Down, KeyModifiers::NONE) => {
                 self.viewport.move_selection_down_one_line();
             }
             (KeyCode::Char('y'), KeyModifiers::CONTROL) => {
