@@ -38,25 +38,25 @@ pub struct ContainerList {
 impl Default for ContainerList {
     fn default() -> Self {
         let input_state_machine = InputStateMachineBuilder::default()
-            .binding((KeyCode::Char('q'), KeyModifiers::NONE), Command::Quit)
-            .binding((KeyCode::Esc, KeyModifiers::NONE), Command::Quit)
+            .binding([(KeyCode::Char('q'), KeyModifiers::NONE)], Command::Quit)
+            .binding([(KeyCode::Esc, KeyModifiers::NONE)], Command::Quit)
             .binding(
-                (KeyCode::Char('k'), KeyModifiers::NONE),
+                [(KeyCode::Char('k'), KeyModifiers::NONE)],
                 Command::MoveSelectionUpOneLine,
             )
             .binding(
-                (KeyCode::Up, KeyModifiers::NONE),
+                [(KeyCode::Up, KeyModifiers::NONE)],
                 Command::MoveSelectionUpOneLine,
             )
             .binding(
-                (KeyCode::Char('j'), KeyModifiers::NONE),
+                [(KeyCode::Char('j'), KeyModifiers::NONE)],
                 Command::MoveSelectionDownOneLine,
             )
             .binding(
-                (KeyCode::Down, KeyModifiers::NONE),
+                [(KeyCode::Down, KeyModifiers::NONE)],
                 Command::MoveSelectionDownOneLine,
             )
-            .multikey_binding(
+            .binding(
                 [
                     (KeyCode::Char('g'), KeyModifiers::NONE),
                     (KeyCode::Char('g'), KeyModifiers::NONE),
@@ -64,48 +64,48 @@ impl Default for ContainerList {
                 Command::MoveSelectionToFirstLine,
             )
             .binding(
-                (KeyCode::Char('G'), KeyModifiers::SHIFT),
+                [(KeyCode::Char('G'), KeyModifiers::SHIFT)],
                 Command::MoveSelectionToLastLine,
             )
             .binding(
-                (KeyCode::Char('y'), KeyModifiers::CONTROL),
+                [(KeyCode::Char('y'), KeyModifiers::CONTROL)],
                 Command::ScrollUpOneLine,
             )
             .binding(
-                (KeyCode::Char('u'), KeyModifiers::CONTROL),
+                [(KeyCode::Char('u'), KeyModifiers::CONTROL)],
                 Command::ScrollUpHalfPage,
             )
             .binding(
-                (KeyCode::Char('b'), KeyModifiers::CONTROL),
+                [(KeyCode::Char('b'), KeyModifiers::CONTROL)],
                 Command::ScrollUpFullPage,
             )
             .binding(
-                (KeyCode::Char('e'), KeyModifiers::CONTROL),
+                [(KeyCode::Char('e'), KeyModifiers::CONTROL)],
                 Command::ScrollDownOneLine,
             )
             .binding(
-                (KeyCode::Char('d'), KeyModifiers::CONTROL),
+                [(KeyCode::Char('d'), KeyModifiers::CONTROL)],
                 Command::ScrollDownHalfPage,
             )
             .binding(
-                (KeyCode::Char('f'), KeyModifiers::CONTROL),
+                [(KeyCode::Char('f'), KeyModifiers::CONTROL)],
                 Command::ScrollDownFullPage,
             )
-            .multikey_binding(
+            .binding(
                 [
                     (KeyCode::Char('z'), KeyModifiers::NONE),
                     (KeyCode::Char('t'), KeyModifiers::NONE),
                 ],
                 Command::ScrollSelectionToTop,
             )
-            .multikey_binding(
+            .binding(
                 [
                     (KeyCode::Char('z'), KeyModifiers::NONE),
                     (KeyCode::Char('m'), KeyModifiers::NONE),
                 ],
                 Command::ScrollSelectionToMiddle,
             )
-            .multikey_binding(
+            .binding(
                 [
                     (KeyCode::Char('z'), KeyModifiers::NONE),
                     (KeyCode::Char('b'), KeyModifiers::NONE),

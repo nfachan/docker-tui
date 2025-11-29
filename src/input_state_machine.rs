@@ -53,13 +53,7 @@ where
     K: Eq + Hash,
     V: Clone,
 {
-    pub fn binding(mut self, key: K, value: V) -> Self {
-        let old = self.0[0].insert(key, InputStateMachineEntry::Done(value));
-        assert!(old.is_none());
-        self
-    }
-
-    pub fn multikey_binding(mut self, keys: impl IntoIterator<Item = K>, value: V) -> Self {
+    pub fn binding(mut self, keys: impl IntoIterator<Item = K>, value: V) -> Self {
         let keys = Vec::from_iter(keys);
         let num_keys = keys.len();
         assert!(num_keys > 0);
@@ -110,8 +104,8 @@ mod tests {
     #[test]
     fn two_bindings() {
         let mut machine = InputStateMachineBuilder::<char, i32>::default()
-            .binding('a', 1)
-            .binding('b', 2)
+            .binding(['a'], 1)
+            .binding(['b'], 2)
             .build();
         assert_eq!(machine.input('a'), InputStateMachineResult::Done(1));
         assert_eq!(machine.input('b'), InputStateMachineResult::Done(2));
@@ -121,12 +115,12 @@ mod tests {
     #[test]
     fn multikey_bindings() {
         let mut machine = InputStateMachineBuilder::<char, i32>::default()
-            .multikey_binding(['a', 'a'], 1)
-            .multikey_binding(['a', 'b', 'c'], 2)
-            .multikey_binding(['a', 'c'], 3)
-            .multikey_binding(['z', 'z'], 4)
-            .multikey_binding(['x', 'x', 'x'], 5)
-            .binding('y', 6)
+            .binding(['a', 'a'], 1)
+            .binding(['a', 'b', 'c'], 2)
+            .binding(['a', 'c'], 3)
+            .binding(['z', 'z'], 4)
+            .binding(['x', 'x', 'x'], 5)
+            .binding(['y'], 6)
             .build();
 
         assert_eq!(machine.input('a'), InputStateMachineResult::NeedMore);
