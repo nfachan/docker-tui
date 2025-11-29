@@ -64,7 +64,15 @@ impl Default for ContainerList {
                 Command::MoveSelectionToFirstLine,
             )
             .binding(
+                [(KeyCode::Home, KeyModifiers::NONE)],
+                Command::MoveSelectionToFirstLine,
+            )
+            .binding(
                 [(KeyCode::Char('G'), KeyModifiers::SHIFT)],
+                Command::MoveSelectionToLastLine,
+            )
+            .binding(
+                [(KeyCode::End, KeyModifiers::NONE)],
                 Command::MoveSelectionToLastLine,
             )
             .binding(
@@ -80,6 +88,10 @@ impl Default for ContainerList {
                 Command::ScrollUpFullPage,
             )
             .binding(
+                [(KeyCode::PageUp, KeyModifiers::NONE)],
+                Command::ScrollUpFullPage,
+            )
+            .binding(
                 [(KeyCode::Char('e'), KeyModifiers::CONTROL)],
                 Command::ScrollDownOneLine,
             )
@@ -89,6 +101,10 @@ impl Default for ContainerList {
             )
             .binding(
                 [(KeyCode::Char('f'), KeyModifiers::CONTROL)],
+                Command::ScrollDownFullPage,
+            )
+            .binding(
+                [(KeyCode::PageDown, KeyModifiers::NONE)],
                 Command::ScrollDownFullPage,
             )
             .binding(
