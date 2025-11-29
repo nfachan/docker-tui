@@ -1,4 +1,8 @@
-use crate::{docker::Container, viewport::Viewport};
+use crate::{
+    docker::Container,
+    input_state_machine::{InputStateMachine, InputStateMachineBuilder, InputStateMachineResult},
+    viewport::Viewport,
+};
 use crossterm::event::{KeyCode, KeyModifiers};
 use ratatui::{
     layout::Margin,
@@ -7,6 +11,7 @@ use ratatui::{
 };
 use std::{cmp, ops::ControlFlow};
 
+#[derive(Copy, Clone)]
 enum Command {
     Quit,
     MoveSelectionUpOneLine,
@@ -19,10 +24,64 @@ enum Command {
     ScrollDownFullPage,
 }
 
-#[derive(Default)]
 pub struct ContainerList {
     containers: Vec<Container>,
     viewport: Viewport,
+    input_state_machine: InputStateMachine<(KeyCode, KeyModifiers), Command>,
+}
+
+impl Default for ContainerList {
+    fn default() -> Self {
+        let input_state_machine = InputStateMachineBuilder::default()
+            .binding((KeyCode::Char('q'), KeyModifiers::NONE), Command::Quit)
+            .binding((KeyCode::Esc, KeyModifiers::NONE), Command::Quit)
+            .binding(
+                (KeyCode::Char('k'), KeyModifiers::NONE),
+                Command::MoveSelectionUpOneLine,
+            )
+            .binding(
+                (KeyCode::Up, KeyModifiers::NONE),
+                Command::MoveSelectionUpOneLine,
+            )
+            .binding(
+                (KeyCode::Char('j'), KeyModifiers::NONE),
+                Command::MoveSelectionDownOneLine,
+            )
+            .binding(
+                (KeyCode::Down, KeyModifiers::NONE),
+                Command::MoveSelectionDownOneLine,
+            )
+            .binding(
+                (KeyCode::Char('y'), KeyModifiers::CONTROL),
+                Command::ScrollUpOneLine,
+            )
+            .binding(
+                (KeyCode::Char('u'), KeyModifiers::CONTROL),
+                Command::ScrollUpHalfPage,
+            )
+            .binding(
+                (KeyCode::Char('b'), KeyModifiers::CONTROL),
+                Command::ScrollUpFullPage,
+            )
+            .binding(
+                (KeyCode::Char('e'), KeyModifiers::CONTROL),
+                Command::ScrollDownOneLine,
+            )
+            .binding(
+                (KeyCode::Char('d'), KeyModifiers::CONTROL),
+                Command::ScrollDownHalfPage,
+            )
+            .binding(
+                (KeyCode::Char('f'), KeyModifiers::CONTROL),
+                Command::ScrollDownFullPage,
+            )
+            .build();
+        Self {
+            containers: Vec::default(),
+            viewport: Viewport::default(),
+            input_state_machine,
+        }
+    }
 }
 
 impl ContainerList {
@@ -68,35 +127,10 @@ impl ContainerList {
     }
 
     pub fn handle_key_event(&mut self, key_event: (KeyCode, KeyModifiers)) -> ControlFlow<()> {
-        match key_event {
-            (KeyCode::Char('q') | KeyCode::Esc, KeyModifiers::NONE) => {
-                self.handle_command(Command::Quit)
-            }
-            (KeyCode::Char('k') | KeyCode::Up, KeyModifiers::NONE) => {
-                self.handle_command(Command::MoveSelectionUpOneLine)
-            }
-            (KeyCode::Char('j') | KeyCode::Down, KeyModifiers::NONE) => {
-                self.handle_command(Command::MoveSelectionDownOneLine)
-            }
-            (KeyCode::Char('y'), KeyModifiers::CONTROL) => {
-                self.handle_command(Command::ScrollUpOneLine)
-            }
-            (KeyCode::Char('u'), KeyModifiers::CONTROL) => {
-                self.handle_command(Command::ScrollUpHalfPage)
-            }
-            (KeyCode::Char('b'), KeyModifiers::CONTROL) => {
-                self.handle_command(Command::ScrollUpFullPage)
-            }
-            (KeyCode::Char('e'), KeyModifiers::CONTROL) => {
-                self.handle_command(Command::ScrollDownOneLine)
-            }
-            (KeyCode::Char('d'), KeyModifiers::CONTROL) => {
-                self.handle_command(Command::ScrollDownHalfPage)
-            }
-            (KeyCode::Char('f'), KeyModifiers::CONTROL) => {
-                self.handle_command(Command::ScrollDownFullPage)
-            }
-            _ => {
+        match self.input_state_machine.input(key_event) {
+            InputStateMachineResult::Done(command) => self.handle_command(command),
+            InputStateMachineResult::NeedMore => ControlFlow::Continue(()),
+            InputStateMachineResult::Invalid => {
                 print!("\x07"); // ASCII BEL to STDOUT
                 ControlFlow::Continue(())
             }

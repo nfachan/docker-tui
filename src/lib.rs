@@ -15,6 +15,7 @@ use tokio::sync::mpsc;
 mod container_list;
 mod docker;
 mod input;
+mod input_state_machine;
 mod viewport;
 
 #[derive(Debug)]
