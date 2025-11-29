@@ -17,6 +17,7 @@ enum Command {
     MoveSelectionUpOneLine,
     MoveSelectionDownOneLine,
     MoveSelectionToFirstLine,
+    MoveSelectionToLastLine,
     ScrollUpOneLine,
     ScrollUpHalfPage,
     ScrollUpFullPage,
@@ -61,6 +62,10 @@ impl Default for ContainerList {
                     (KeyCode::Char('g'), KeyModifiers::NONE),
                 ],
                 Command::MoveSelectionToFirstLine,
+            )
+            .binding(
+                (KeyCode::Char('G'), KeyModifiers::SHIFT),
+                Command::MoveSelectionToLastLine,
             )
             .binding(
                 (KeyCode::Char('y'), KeyModifiers::CONTROL),
@@ -134,6 +139,9 @@ impl ContainerList {
             }
             Command::MoveSelectionToFirstLine => {
                 self.viewport.move_selection_to_first_line();
+            }
+            Command::MoveSelectionToLastLine => {
+                self.viewport.move_selection_to_last_line();
             }
             Command::ScrollUpOneLine => {
                 self.viewport.scroll_up_n_lines(1);
