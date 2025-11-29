@@ -112,7 +112,6 @@ impl Viewport {
         self.scroll_line_to_top(self.selection);
     }
 
-    #[cfg(test)]
     pub fn scroll_selection_to_middle(&mut self) {
         self.scroll_line_to_top(
             self.selection

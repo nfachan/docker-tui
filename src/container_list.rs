@@ -23,6 +23,7 @@ enum Command {
     ScrollDownHalfPage,
     ScrollDownFullPage,
     ScrollSelectionToTop,
+    ScrollSelectionToMiddle,
     ScrollSelectionToBottom,
 }
 
@@ -87,6 +88,13 @@ impl Default for ContainerList {
             .multikey_binding(
                 [
                     (KeyCode::Char('z'), KeyModifiers::NONE),
+                    (KeyCode::Char('m'), KeyModifiers::NONE),
+                ],
+                Command::ScrollSelectionToMiddle,
+            )
+            .multikey_binding(
+                [
+                    (KeyCode::Char('z'), KeyModifiers::NONE),
                     (KeyCode::Char('b'), KeyModifiers::NONE),
                 ],
                 Command::ScrollSelectionToBottom,
@@ -140,6 +148,9 @@ impl ContainerList {
             }
             Command::ScrollSelectionToTop => {
                 self.viewport.scroll_selection_to_top();
+            }
+            Command::ScrollSelectionToMiddle => {
+                self.viewport.scroll_selection_to_middle();
             }
             Command::ScrollSelectionToBottom => {
                 self.viewport.scroll_selection_to_bottom();
