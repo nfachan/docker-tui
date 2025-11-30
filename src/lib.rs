@@ -3,7 +3,10 @@ use color_eyre::eyre::{Report, Result};
 use container_list::ContainerList;
 use crossterm::{cursor, event, execute, terminal};
 use docker::Container;
-use ratatui::prelude::*;
+use ratatui::{
+    Terminal,
+    backend::{Backend, CrosstermBackend},
+};
 use std::{io, ops::ControlFlow, panic, thread};
 use tokio::sync::mpsc;
 

@@ -5,9 +5,13 @@ use crate::{
 };
 use crossterm::event::{KeyCode, KeyModifiers, MouseEvent, MouseEventKind};
 use ratatui::{
-    layout::Margin,
-    prelude::*,
-    widgets::{Block, List, ListItem, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState},
+    buffer::Buffer,
+    layout::{Margin, Rect},
+    style::{Modifier, Stylize as _},
+    widgets::{
+        Block, List, ListItem, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState,
+        StatefulWidget as _, Widget,
+    },
 };
 use std::{cmp, ops::ControlFlow};
 
