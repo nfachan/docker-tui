@@ -267,6 +267,35 @@ impl ContainerList {
     }
 }
 
+fn format_container(container: &Container, is_selected: bool) -> ListItem<'static> {
+    let prefix = if is_selected { ">" } else { " " };
+    let name = match &container.names {
+        None => "[]".to_string(),
+        Some(names) => match &names
+            .iter()
+            .map(|name| name.trim_start_matches('/'))
+            .collect::<Vec<_>>()[..]
+        {
+            [] => "[]".to_string(),
+            [name] => name.to_string(),
+            names => names.iter().fold("".to_string(), |accum, name| {
+                if accum.is_empty() {
+                    name.to_string()
+                } else {
+                    format!("{accum}, {name}")
+                }
+            }),
+        },
+    };
+    let status = container.status.as_deref().unwrap_or("N/A");
+    let list_item = ListItem::new(format!("{prefix} {name} - {status}"));
+    if is_selected {
+        list_item.add_modifier(Modifier::REVERSED)
+    } else {
+        list_item
+    }
+}
+
 impl Widget for &mut ContainerList {
     fn render(self, area: Rect, buf: &mut Buffer) {
         // We may not always get a resize event before some other event that causes a redraw.
@@ -284,11 +313,8 @@ impl Widget for &mut ContainerList {
             // Select the subset of list items we are going to render.
             let items = self.viewport.select_for_render(
                 &self.containers[..],
-                |container| ListItem::new(format!("  {} - {}", container.name, container.status)),
-                |container| {
-                    ListItem::new(format!("> {} - {}", container.name, container.status))
-                        .add_modifier(Modifier::REVERSED)
-                },
+                |container| format_container(container, false),
+                |container| format_container(container, true),
             );
 
             // Render the list.

@@ -1,37 +1,17 @@
 use crate::Event;
 use bollard::{Docker, container::ListContainersOptions};
-use color_eyre::eyre::{Report, Result};
+use color_eyre::eyre::{Error, Report, Result};
 use std::time::Duration;
 use tokio::{runtime::Builder, sync::mpsc, task, time};
 
-#[derive(Debug, Clone)]
-pub struct Container {
-    pub name: String,
-    pub status: String,
-}
+pub use bollard::models::ContainerSummary as Container;
 
 async fn fetch_containers(docker: &Docker) -> Result<Vec<Container>> {
     let options = Some(ListContainersOptions::<String> {
         all: true,
         ..Default::default()
     });
-
-    let container_list = docker.list_containers(options).await?;
-    let parsed_containers: Vec<Container> = container_list
-        .iter()
-        .map(|container| {
-            let name = container
-                .names
-                .as_ref()
-                .and_then(|names| names.first())
-                .map(|n| n.trim_start_matches('/').to_string())
-                .unwrap_or_else(|| "unnamed".to_string());
-            let status = container.status.as_deref().unwrap_or("unknown").to_string();
-            Container { name, status }
-        })
-        .collect();
-
-    Ok(parsed_containers)
+    docker.list_containers(options).await.map_err(Error::from)
 }
 
 async fn docker_event_main_inner(docker: Docker, sender: mpsc::Sender<Event>) {
