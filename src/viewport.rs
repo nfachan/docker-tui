@@ -13,7 +13,6 @@ pub struct Viewport {
     num_containers: usize,
     #[getter(skip)]
     selection: usize,
-    #[getter(skip)]
     top: usize,
     height: usize,
 }
@@ -49,6 +48,11 @@ impl Viewport {
             assert!(self.selection < self.top + cmp::max(self.height, 1));
         }
         assert!(self.is_valid());
+    }
+
+    pub fn set_selection(&mut self, selection: usize) {
+        self.selection = selection;
+        self.validate();
     }
 
     pub fn move_selection_up_one_line(&mut self) {

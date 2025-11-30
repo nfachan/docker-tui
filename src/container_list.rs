@@ -3,10 +3,12 @@ use crate::{
     input_state_machine::{InputStateMachine, InputStateMachineBuilder, InputStateMachineResult},
     viewport::Viewport,
 };
-use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers, MouseEvent, MouseEventKind};
+use crossterm::event::{
+    KeyCode, KeyEvent, KeyEventKind, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
+};
 use ratatui::{
     buffer::Buffer,
-    layout::{Margin, Rect},
+    layout::{Margin, Position, Rect},
     style::{Modifier, Stylize as _},
     widgets::{
         Block, List, ListItem, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState,
@@ -37,6 +39,7 @@ pub struct ContainerList {
     containers: Vec<Container>,
     viewport: Viewport,
     input_state_machine: InputStateMachine<(KeyCode, KeyModifiers), Command>,
+    last_area: Rect,
 }
 
 impl Default for ContainerList {
@@ -137,6 +140,7 @@ impl Default for ContainerList {
             containers: Vec::default(),
             viewport: Viewport::default(),
             input_state_machine,
+            last_area: Rect::ZERO,
         }
     }
 }
@@ -225,6 +229,18 @@ impl ContainerList {
             MouseEventKind::ScrollUp => {
                 self.viewport.scroll_up_n_lines(3);
             }
+            MouseEventKind::Down(MouseButton::Left) => {
+                let position = Position::new(event.column, event.row);
+                let last_inner_area = Self::block().inner(self.last_area);
+                if last_inner_area.contains(position) {
+                    let new_selection = usize::from(position.y)
+                        - usize::from(last_inner_area.top())
+                        + self.viewport.top();
+                    if new_selection < self.containers.len() {
+                        self.viewport.set_selection(new_selection);
+                    }
+                }
+            }
             _ => {}
         }
     }
@@ -242,6 +258,7 @@ impl ContainerList {
 
 impl Widget for &mut ContainerList {
     fn render(self, area: Rect, buf: &mut Buffer) {
+        self.last_area = area;
         let block = ContainerList::block();
 
         if self.containers.is_empty() {
