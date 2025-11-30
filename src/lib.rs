@@ -36,17 +36,22 @@ fn main_loop(docker: Docker, mut terminal: Terminal<impl Backend>) -> Result<()>
     terminal.draw(|frame| frame.render_widget(&mut container_list, frame.area()))?;
     while let Some(event) = receiver.blocking_recv() {
         match event {
-            Event::Input(Ok(input::Event::Key(key))) if key.kind == event::KeyEventKind::Press => {
-                if let ControlFlow::Break(_) =
-                    container_list.handle_key_event((key.code, key.modifiers))
-                {
+            Event::Input(Ok(input::Event::Key(event))) => {
+                if let ControlFlow::Break(_) = container_list.handle_key_event(event) {
                     break;
                 }
             }
             Event::Input(Ok(input::Event::Mouse(event))) => {
                 container_list.handle_mouse_event(event);
             }
-            Event::Input(Ok(_)) => {}
+            Event::Input(Ok(input::Event::Resize(_, rows))) => {
+                container_list.handle_resize(rows);
+            }
+            Event::Input(Ok(
+                input::Event::FocusGained | input::Event::FocusLost | input::Event::Paste(_),
+            )) => {
+                continue;
+            }
             Event::Docker(Ok(containers)) => {
                 container_list.handle_containers(containers);
             }

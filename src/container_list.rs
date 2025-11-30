@@ -3,7 +3,7 @@ use crate::{
     input_state_machine::{InputStateMachine, InputStateMachineBuilder, InputStateMachineResult},
     viewport::Viewport,
 };
-use crossterm::event::{KeyCode, KeyModifiers, MouseEvent, MouseEventKind};
+use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers, MouseEvent, MouseEventKind};
 use ratatui::{
     buffer::Buffer,
     layout::{Margin, Rect},
@@ -198,14 +198,22 @@ impl ContainerList {
         ControlFlow::Continue(())
     }
 
-    pub fn handle_key_event(&mut self, key_event: (KeyCode, KeyModifiers)) -> ControlFlow<()> {
-        match self.input_state_machine.input(key_event) {
-            InputStateMachineResult::Done(command) => self.handle_command(command),
-            InputStateMachineResult::NeedMore => ControlFlow::Continue(()),
-            InputStateMachineResult::Invalid => {
-                print!("\x07"); // ASCII BEL to STDOUT
-                ControlFlow::Continue(())
+    pub fn handle_key_event(&mut self, event: KeyEvent) -> ControlFlow<()> {
+        match event.kind {
+            KeyEventKind::Press => {
+                match self
+                    .input_state_machine
+                    .input((event.code, event.modifiers))
+                {
+                    InputStateMachineResult::Done(command) => self.handle_command(command),
+                    InputStateMachineResult::NeedMore => ControlFlow::Continue(()),
+                    InputStateMachineResult::Invalid => {
+                        print!("\x07"); // ASCII BEL to STDOUT
+                        ControlFlow::Continue(())
+                    }
+                }
             }
+            _ => ControlFlow::Continue(()),
         }
     }
 

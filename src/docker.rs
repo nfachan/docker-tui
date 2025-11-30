@@ -40,7 +40,7 @@ async fn docker_event_main_inner(docker: Docker, sender: mpsc::Sender<Event>) {
         .await
         .is_ok()
     {
-        time::sleep(Duration::from_secs(1)).await;
+        time::sleep(Duration::from_secs(10)).await;
     }
 }
 
