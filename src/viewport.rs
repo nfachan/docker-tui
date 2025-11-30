@@ -298,6 +298,54 @@ mod tests {
     }
 
     #[rstest]
+    #[case(0, 1)]
+    #[case(1, 1)]
+    #[case(2, 1)]
+    #[case(3, 1)]
+    #[case(4, 2)]
+    #[case(5, 2)]
+    #[case(6, 3)]
+    #[case(7, 3)]
+    #[case(8, 4)]
+    #[case(9, 4)]
+    fn half_page(#[case] height: usize, #[case] expected: usize) {
+        for num_containers in 0..10 {
+            for selection in 0..cmp::max(num_containers, 1) {
+                for top in 0..selection + 1 {
+                    let viewport = viewport!(num_containers, selection, top, height);
+                    if viewport.is_valid() {
+                        assert_eq!(viewport.half_page(), expected);
+                    }
+                }
+            }
+        }
+    }
+
+    #[rstest]
+    #[case(0, 1)]
+    #[case(1, 1)]
+    #[case(2, 1)]
+    #[case(3, 1)]
+    #[case(4, 2)]
+    #[case(5, 3)]
+    #[case(6, 4)]
+    #[case(7, 5)]
+    #[case(8, 6)]
+    #[case(9, 7)]
+    fn full_page(#[case] height: usize, #[case] expected: usize) {
+        for num_containers in 0..10 {
+            for selection in 0..cmp::max(num_containers, 1) {
+                for top in 0..selection + 1 {
+                    let viewport = viewport!(num_containers, selection, top, height);
+                    if viewport.is_valid() {
+                        assert_eq!(viewport.full_page(), expected);
+                    }
+                }
+            }
+        }
+    }
+
+    #[rstest]
     #[case(viewport!(0, 0, 0, 0), 0, viewport!(0, 0, 0, 0))]
     #[case(viewport!(0, 0, 0, 1), 0, viewport!(0, 0, 0, 1))]
     #[case(viewport!(0, 0, 0, 2), 0, viewport!(0, 0, 0, 2))]
