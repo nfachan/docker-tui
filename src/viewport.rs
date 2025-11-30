@@ -1,4 +1,3 @@
-use derive_getters::Getters;
 use std::cmp;
 
 #[derive(Debug, Eq, PartialEq)]
@@ -7,13 +6,10 @@ pub struct ScrollbarParameters {
     pub top_item: usize,
 }
 
-#[derive(Clone, Debug, Default, Getters, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Viewport {
-    #[getter(skip)]
     num_containers: usize,
-    #[getter(skip)]
     selection: usize,
-    #[getter(skip)]
     top: usize,
     height: usize,
 }
@@ -49,6 +45,14 @@ impl Viewport {
                 top_item: self.top,
             }
         })
+    }
+
+    pub fn half_page(&self) -> usize {
+        cmp::max(self.height / 2, 1)
+    }
+
+    pub fn full_page(&self) -> usize {
+        cmp::max(self.height.saturating_sub(2), 1)
     }
 
     pub fn handle_click(&mut self, row: usize) {

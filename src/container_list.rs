@@ -15,7 +15,7 @@ use ratatui::{
         StatefulWidget as _, Widget,
     },
 };
-use std::{cmp, ops::ControlFlow};
+use std::ops::ControlFlow;
 
 #[derive(Copy, Clone)]
 enum Command {
@@ -170,24 +170,18 @@ impl ContainerList {
             Command::ScrollUpOneLine => {
                 self.viewport.scroll_up_n_lines(1);
             }
-            Command::ScrollUpHalfPage => {
-                self.viewport
-                    .scroll_up_n_lines(cmp::max(1, self.viewport.height() / 2));
-            }
+            Command::ScrollUpHalfPage => self.viewport.scroll_up_n_lines(self.viewport.half_page()),
             Command::ScrollUpFullPage => {
-                self.viewport
-                    .scroll_up_n_lines(cmp::max(1, self.viewport.height().saturating_sub(2)));
+                self.viewport.scroll_up_n_lines(self.viewport.full_page());
             }
             Command::ScrollDownOneLine => {
                 self.viewport.scroll_down_n_lines(1);
             }
             Command::ScrollDownHalfPage => {
-                self.viewport
-                    .scroll_down_n_lines(cmp::max(1, self.viewport.height() / 2));
+                self.viewport.scroll_down_n_lines(self.viewport.half_page());
             }
             Command::ScrollDownFullPage => {
-                self.viewport
-                    .scroll_down_n_lines(cmp::max(1, self.viewport.height().saturating_sub(2)));
+                self.viewport.scroll_down_n_lines(self.viewport.full_page());
             }
             Command::ScrollSelectionToTop => {
                 self.viewport.scroll_selection_to_top();
