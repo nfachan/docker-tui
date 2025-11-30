@@ -254,20 +254,18 @@ impl ContainerList {
 
 impl Widget for &mut ContainerList {
     fn render(self, area: Rect, buf: &mut Buffer) {
+        // We may not always get a resize event before some other event that causes a redraw.
+        if area != self.last_area {
+            self.handle_resize(area.height);
+        }
         self.last_area = area;
-        let block = ContainerList::block();
 
         if self.containers.is_empty() {
             // Handle special case of no containers.
             Paragraph::new("no containers")
-                .block(block)
+                .block(ContainerList::block())
                 .render(area, buf);
         } else {
-            // We may not always get a resize event before some other event that causes a redraw.
-            if self.viewport.height() != usize::from(block.inner(area).height) {
-                self.handle_resize(area.height);
-            }
-
             // Select the subset of list items we are going to render.
             let items = self.viewport.select_for_render(
                 &self.containers[..],
@@ -279,7 +277,7 @@ impl Widget for &mut ContainerList {
             );
 
             // Render the list.
-            Widget::render(List::new(items).block(block), area, buf);
+            Widget::render(List::new(items).block(ContainerList::block()), area, buf);
 
             // Possibly render a scrollbar.
             if let Some(scrollbar_parameters) = self.viewport.scrollbar() {
