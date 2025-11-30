@@ -1,6 +1,6 @@
 use derive_more::Display;
 use std::{
-    collections::{HashMap, hash_map::Entry},
+    collections::{HashMap, hash_map},
     error::Error,
     hash::Hash,
     result::Result,
@@ -21,26 +21,26 @@ pub enum BindingErrorKind {
 #[display("{kind}")]
 pub struct BindingError<K, V> {
     kind: BindingErrorKind,
-    builder: InputStateMachineBuilder<K, V>,
+    builder: Builder<K, V>,
 }
 
 impl<K, V> Error for BindingError<K, V> {}
 
 #[derive(Debug)]
-enum InputStateMachineEntry<V> {
+enum Entry<V> {
     Done(V),
     NeedMore(usize),
 }
 
 #[derive(Debug, Eq, PartialEq)]
-pub enum InputStateMachineResult<V> {
+pub enum InputResult<V> {
     Done(V),
     NeedMore,
     Invalid,
 }
 
 pub struct InputStateMachine<K, V> {
-    states: Vec<HashMap<K, InputStateMachineEntry<V>>>,
+    states: Vec<HashMap<K, Entry<V>>>,
     current_state: usize,
 }
 
@@ -49,34 +49,34 @@ where
     K: Eq + Hash,
     V: Clone,
 {
-    pub fn input(&mut self, key: K) -> InputStateMachineResult<V> {
+    pub fn input(&mut self, key: K) -> InputResult<V> {
         match self.states[self.current_state].get(&key) {
             None => {
                 self.current_state = 0;
-                InputStateMachineResult::Invalid
+                InputResult::Invalid
             }
-            Some(InputStateMachineEntry::Done(value)) => {
+            Some(Entry::Done(value)) => {
                 self.current_state = 0;
-                InputStateMachineResult::Done(value.clone())
+                InputResult::Done(value.clone())
             }
-            Some(InputStateMachineEntry::NeedMore(next_state)) => {
+            Some(Entry::NeedMore(next_state)) => {
                 self.current_state = *next_state;
-                InputStateMachineResult::NeedMore
+                InputResult::NeedMore
             }
         }
     }
 }
 
 #[derive(Debug)]
-pub struct InputStateMachineBuilder<K, V>(Vec<HashMap<K, InputStateMachineEntry<V>>>);
+pub struct Builder<K, V>(Vec<HashMap<K, Entry<V>>>);
 
-impl<K, V> Default for InputStateMachineBuilder<K, V> {
+impl<K, V> Default for Builder<K, V> {
     fn default() -> Self {
-        InputStateMachineBuilder(vec![HashMap::default()])
+        Builder(vec![HashMap::default()])
     }
 }
 
-impl<K, V> InputStateMachineBuilder<K, V>
+impl<K, V> Builder<K, V>
 where
     K: Eq + Hash,
     V: Clone,
@@ -101,14 +101,14 @@ where
             match self.0[state].get(&key) {
                 None => {
                     let next_state = self.0.len();
-                    self.0[state].insert(key, InputStateMachineEntry::NeedMore(next_state));
+                    self.0[state].insert(key, Entry::NeedMore(next_state));
                     self.0.push(HashMap::default());
                     state = next_state;
                 }
-                Some(InputStateMachineEntry::NeedMore(next_state)) => {
+                Some(Entry::NeedMore(next_state)) => {
                     state = *next_state;
                 }
-                Some(InputStateMachineEntry::Done(_)) => {
+                Some(Entry::Done(_)) => {
                     return Err(BindingError {
                         kind: BindingErrorKind::PrefixAlreadyBound,
                         builder: self,
@@ -119,12 +119,12 @@ where
         let key = keys.next().unwrap();
         assert!(keys.next().is_none());
         match self.0[state].entry(key) {
-            Entry::Occupied(_) => Err(BindingError {
+            hash_map::Entry::Occupied(_) => Err(BindingError {
                 kind: BindingErrorKind::ExtensionAlreadyBound,
                 builder: self,
             }),
-            Entry::Vacant(entry) => {
-                entry.insert(InputStateMachineEntry::Done(value));
+            hash_map::Entry::Vacant(entry) => {
+                entry.insert(Entry::Done(value));
                 Ok(self)
             }
         }
@@ -144,26 +144,26 @@ mod tests {
 
     #[test]
     fn empty() {
-        let mut machine = InputStateMachineBuilder::<char, i32>::default().build();
-        assert_eq!(machine.input('a'), InputStateMachineResult::Invalid);
+        let mut machine = Builder::<char, i32>::default().build();
+        assert_eq!(machine.input('a'), InputResult::Invalid);
     }
 
     #[test]
     fn two_bindings() {
-        let mut machine = InputStateMachineBuilder::<char, i32>::default()
+        let mut machine = Builder::<char, i32>::default()
             .binding(['a'], 1)
             .unwrap()
             .binding(['b'], 2)
             .unwrap()
             .build();
-        assert_eq!(machine.input('a'), InputStateMachineResult::Done(1));
-        assert_eq!(machine.input('b'), InputStateMachineResult::Done(2));
-        assert_eq!(machine.input('c'), InputStateMachineResult::Invalid);
+        assert_eq!(machine.input('a'), InputResult::Done(1));
+        assert_eq!(machine.input('b'), InputResult::Done(2));
+        assert_eq!(machine.input('c'), InputResult::Invalid);
     }
 
     #[test]
     fn multikey_bindings() {
-        let mut machine = InputStateMachineBuilder::<char, i32>::default()
+        let mut machine = Builder::<char, i32>::default()
             .binding(['a', 'a'], 1)
             .unwrap()
             .binding(['a', 'b', 'c'], 2)
@@ -178,35 +178,35 @@ mod tests {
             .unwrap()
             .build();
 
-        assert_eq!(machine.input('a'), InputStateMachineResult::NeedMore);
-        assert_eq!(machine.input('a'), InputStateMachineResult::Done(1));
+        assert_eq!(machine.input('a'), InputResult::NeedMore);
+        assert_eq!(machine.input('a'), InputResult::Done(1));
 
-        assert_eq!(machine.input('a'), InputStateMachineResult::NeedMore);
-        assert_eq!(machine.input('z'), InputStateMachineResult::Invalid);
+        assert_eq!(machine.input('a'), InputResult::NeedMore);
+        assert_eq!(machine.input('z'), InputResult::Invalid);
 
-        assert_eq!(machine.input('a'), InputStateMachineResult::NeedMore);
-        assert_eq!(machine.input('b'), InputStateMachineResult::NeedMore);
-        assert_eq!(machine.input('c'), InputStateMachineResult::Done(2));
+        assert_eq!(machine.input('a'), InputResult::NeedMore);
+        assert_eq!(machine.input('b'), InputResult::NeedMore);
+        assert_eq!(machine.input('c'), InputResult::Done(2));
 
-        assert_eq!(machine.input('a'), InputStateMachineResult::NeedMore);
-        assert_eq!(machine.input('c'), InputStateMachineResult::Done(3));
+        assert_eq!(machine.input('a'), InputResult::NeedMore);
+        assert_eq!(machine.input('c'), InputResult::Done(3));
 
-        assert_eq!(machine.input('z'), InputStateMachineResult::NeedMore);
-        assert_eq!(machine.input('z'), InputStateMachineResult::Done(4));
+        assert_eq!(machine.input('z'), InputResult::NeedMore);
+        assert_eq!(machine.input('z'), InputResult::Done(4));
 
-        assert_eq!(machine.input('x'), InputStateMachineResult::NeedMore);
-        assert_eq!(machine.input('x'), InputStateMachineResult::NeedMore);
-        assert_eq!(machine.input('x'), InputStateMachineResult::Done(5));
+        assert_eq!(machine.input('x'), InputResult::NeedMore);
+        assert_eq!(machine.input('x'), InputResult::NeedMore);
+        assert_eq!(machine.input('x'), InputResult::Done(5));
 
-        assert_eq!(machine.input('y'), InputStateMachineResult::Done(6));
+        assert_eq!(machine.input('y'), InputResult::Done(6));
 
-        assert_eq!(machine.input('w'), InputStateMachineResult::Invalid);
+        assert_eq!(machine.input('w'), InputResult::Invalid);
     }
 
     #[test]
     fn empty_sequence() {
         assert_eq!(
-            InputStateMachineBuilder::<char, i32>::default()
+            Builder::<char, i32>::default()
                 .binding([], 1)
                 .unwrap_err()
                 .kind,
@@ -217,7 +217,7 @@ mod tests {
     #[test]
     fn prefix_already_bound() {
         assert_eq!(
-            InputStateMachineBuilder::<char, i32>::default()
+            Builder::<char, i32>::default()
                 .binding(['a'], 1)
                 .unwrap()
                 .binding(['a', 'b'], 2)
@@ -230,7 +230,7 @@ mod tests {
     #[test]
     fn extention_already_bound() {
         assert_eq!(
-            InputStateMachineBuilder::<char, i32>::default()
+            Builder::<char, i32>::default()
                 .binding(['a', 'b'], 1)
                 .unwrap()
                 .binding(['a'], 2)

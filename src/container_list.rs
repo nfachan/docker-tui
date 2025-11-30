@@ -1,6 +1,6 @@
 use crate::{
     docker::Container,
-    input_state_machine::{InputStateMachine, InputStateMachineBuilder, InputStateMachineResult},
+    input_state_machine::{Builder, InputResult, InputStateMachine},
     viewport::Viewport,
 };
 use crossterm::event::{
@@ -44,7 +44,7 @@ pub struct ContainerList {
 
 impl Default for ContainerList {
     fn default() -> Self {
-        let input_state_machine = InputStateMachineBuilder::default()
+        let input_state_machine = Builder::default()
             .binding([(KeyCode::Char('q'), KeyModifiers::NONE)], Command::Quit)
             .unwrap()
             .binding([(KeyCode::Esc, KeyModifiers::NONE)], Command::Quit)
@@ -224,9 +224,9 @@ impl ContainerList {
                     .input_state_machine
                     .input((event.code, event.modifiers))
                 {
-                    InputStateMachineResult::Done(command) => self.handle_command(command),
-                    InputStateMachineResult::NeedMore => ControlFlow::Continue(()),
-                    InputStateMachineResult::Invalid => {
+                    InputResult::Done(command) => self.handle_command(command),
+                    InputResult::NeedMore => ControlFlow::Continue(()),
+                    InputResult::Invalid => {
                         print!("\x07"); // ASCII BEL to STDOUT
                         ControlFlow::Continue(())
                     }
