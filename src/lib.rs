@@ -1,12 +1,7 @@
 use bollard::Docker;
 use color_eyre::eyre::{Report, Result};
 use container_list::ContainerList;
-use crossterm::{
-    cursor,
-    event::{self, KeyEventKind},
-    execute,
-    terminal::{self, EnterAlternateScreen, LeaveAlternateScreen},
-};
+use crossterm::{cursor, event, execute, terminal};
 use docker::Container;
 use ratatui::prelude::*;
 use std::{io, ops::ControlFlow, panic, thread};
@@ -38,7 +33,7 @@ fn main_loop(docker: Docker, mut terminal: Terminal<impl Backend>) -> Result<()>
     terminal.draw(|frame| frame.render_widget(&mut container_list, frame.area()))?;
     while let Some(event) = receiver.blocking_recv() {
         match event {
-            Event::Input(Ok(input::Event::Key(key))) if key.kind == KeyEventKind::Press => {
+            Event::Input(Ok(input::Event::Key(key))) if key.kind == event::KeyEventKind::Press => {
                 if let ControlFlow::Break(_) =
                     container_list.handle_key_event((key.code, key.modifiers))
                 {
@@ -73,7 +68,7 @@ fn main_start_up(docker: Docker) -> Result<()> {
     let mut stdout = io::stdout();
 
     terminal::enable_raw_mode()?;
-    execute!(stdout, EnterAlternateScreen)?;
+    execute!(stdout, terminal::EnterAlternateScreen)?;
     execute!(stdout, cursor::Hide)?;
     execute!(stdout, event::EnableMouseCapture)?;
 
@@ -85,7 +80,7 @@ fn main_clean_up() -> Result<()> {
     [
         execute!(stdout, event::DisableMouseCapture),
         execute!(stdout, cursor::Show),
-        execute!(stdout, LeaveAlternateScreen),
+        execute!(stdout, terminal::LeaveAlternateScreen),
         terminal::disable_raw_mode(),
     ]
     .into_iter()
