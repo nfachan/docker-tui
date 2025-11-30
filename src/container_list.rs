@@ -3,7 +3,7 @@ use crate::{
     input_state_machine::{InputStateMachine, InputStateMachineBuilder, InputStateMachineResult},
     viewport::Viewport,
 };
-use crossterm::event::{KeyCode, KeyModifiers};
+use crossterm::event::{KeyCode, KeyModifiers, MouseEvent, MouseEventKind};
 use ratatui::{
     layout::Margin,
     prelude::*,
@@ -202,6 +202,18 @@ impl ContainerList {
                 print!("\x07"); // ASCII BEL to STDOUT
                 ControlFlow::Continue(())
             }
+        }
+    }
+
+    pub fn handle_mouse_event(&mut self, event: MouseEvent) {
+        match event.kind {
+            MouseEventKind::ScrollDown => {
+                self.viewport.scroll_down_n_lines(3);
+            }
+            MouseEventKind::ScrollUp => {
+                self.viewport.scroll_up_n_lines(3);
+            }
+            _ => {}
         }
     }
 

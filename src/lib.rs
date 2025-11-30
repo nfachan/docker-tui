@@ -3,7 +3,7 @@ use color_eyre::eyre::{Report, Result};
 use container_list::ContainerList;
 use crossterm::{
     cursor,
-    event::KeyEventKind,
+    event::{self, KeyEventKind},
     execute,
     terminal::{self, EnterAlternateScreen, LeaveAlternateScreen},
 };
@@ -45,6 +45,9 @@ fn main_loop(docker: Docker, mut terminal: Terminal<impl Backend>) -> Result<()>
                     break;
                 }
             }
+            Event::Input(Ok(input::Event::Mouse(event))) => {
+                container_list.handle_mouse_event(event);
+            }
             Event::Input(Ok(_)) => {}
             Event::Docker(Ok(containers)) => {
                 container_list.handle_containers(containers);
@@ -72,6 +75,7 @@ fn main_start_up(docker: Docker) -> Result<()> {
     terminal::enable_raw_mode()?;
     execute!(stdout, EnterAlternateScreen)?;
     execute!(stdout, cursor::Hide)?;
+    execute!(stdout, event::EnableMouseCapture)?;
 
     main_loop(docker, Terminal::new(CrosstermBackend::new(stdout))?)
 }
@@ -79,6 +83,7 @@ fn main_start_up(docker: Docker) -> Result<()> {
 fn main_clean_up() -> Result<()> {
     let mut stdout = io::stdout();
     [
+        execute!(stdout, event::DisableMouseCapture),
         execute!(stdout, cursor::Show),
         execute!(stdout, LeaveAlternateScreen),
         terminal::disable_raw_mode(),
