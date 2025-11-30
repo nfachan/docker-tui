@@ -32,16 +32,16 @@ enum Entry<V> {
     NeedMore(usize),
 }
 
+pub struct InputStateMachine<K, V> {
+    states: Vec<HashMap<K, Entry<V>>>,
+    current_state: usize,
+}
+
 #[derive(Debug, Eq, PartialEq)]
 pub enum InputResult<V> {
     Done(V),
     NeedMore,
     Invalid,
-}
-
-pub struct InputStateMachine<K, V> {
-    states: Vec<HashMap<K, Entry<V>>>,
-    current_state: usize,
 }
 
 impl<K, V> InputStateMachine<K, V>
