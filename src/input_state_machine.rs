@@ -1,5 +1,32 @@
-use std::{collections::HashMap, hash::Hash};
+use derive_more::Display;
+use std::{
+    collections::{HashMap, hash_map::Entry},
+    error::Error,
+    hash::Hash,
+    result::Result,
+};
 
+#[derive(Debug, Display, Eq, PartialEq)]
+pub enum BindingErrorKind {
+    #[display("extension of binding already bound")]
+    ExtensionAlreadyBound,
+    #[display("prefix of binding already bound")]
+    PrefixAlreadyBound,
+    #[display("attempt to bind an empty key sequence")]
+    Empty,
+}
+
+#[derive(derive_more::Debug, Display)]
+#[debug("{kind:?}")]
+#[display("{kind}")]
+pub struct BindingError<K, V> {
+    kind: BindingErrorKind,
+    builder: InputStateMachineBuilder<K, V>,
+}
+
+impl<K, V> Error for BindingError<K, V> {}
+
+#[derive(Debug)]
 enum InputStateMachineEntry<V> {
     Done(V),
     NeedMore(usize),
@@ -40,6 +67,7 @@ where
     }
 }
 
+#[derive(Debug)]
 pub struct InputStateMachineBuilder<K, V>(Vec<HashMap<K, InputStateMachineEntry<V>>>);
 
 impl<K, V> Default for InputStateMachineBuilder<K, V> {
@@ -53,10 +81,19 @@ where
     K: Eq + Hash,
     V: Clone,
 {
-    pub fn binding(mut self, keys: impl IntoIterator<Item = K>, value: V) -> Self {
+    pub fn binding(
+        mut self,
+        keys: impl IntoIterator<Item = K>,
+        value: V,
+    ) -> Result<Self, BindingError<K, V>> {
         let keys = Vec::from_iter(keys);
         let num_keys = keys.len();
-        assert!(num_keys > 0);
+        if num_keys == 0 {
+            return Err(BindingError {
+                kind: BindingErrorKind::Empty,
+                builder: self,
+            });
+        }
         let mut keys = keys.into_iter();
         let mut state = 0;
         for _ in 0..num_keys - 1 {
@@ -72,15 +109,25 @@ where
                     state = *next_state;
                 }
                 Some(InputStateMachineEntry::Done(_)) => {
-                    panic!("key bindings are not prefix-free");
+                    return Err(BindingError {
+                        kind: BindingErrorKind::PrefixAlreadyBound,
+                        builder: self,
+                    });
                 }
             }
         }
         let key = keys.next().unwrap();
         assert!(keys.next().is_none());
-        let old = self.0[state].insert(key, InputStateMachineEntry::Done(value));
-        assert!(old.is_none());
-        self
+        match self.0[state].entry(key) {
+            Entry::Occupied(_) => Err(BindingError {
+                kind: BindingErrorKind::ExtensionAlreadyBound,
+                builder: self,
+            }),
+            Entry::Vacant(entry) => {
+                entry.insert(InputStateMachineEntry::Done(value));
+                Ok(self)
+            }
+        }
     }
 
     pub fn build(self) -> InputStateMachine<K, V> {
@@ -105,7 +152,9 @@ mod tests {
     fn two_bindings() {
         let mut machine = InputStateMachineBuilder::<char, i32>::default()
             .binding(['a'], 1)
+            .unwrap()
             .binding(['b'], 2)
+            .unwrap()
             .build();
         assert_eq!(machine.input('a'), InputStateMachineResult::Done(1));
         assert_eq!(machine.input('b'), InputStateMachineResult::Done(2));
@@ -116,11 +165,17 @@ mod tests {
     fn multikey_bindings() {
         let mut machine = InputStateMachineBuilder::<char, i32>::default()
             .binding(['a', 'a'], 1)
+            .unwrap()
             .binding(['a', 'b', 'c'], 2)
+            .unwrap()
             .binding(['a', 'c'], 3)
+            .unwrap()
             .binding(['z', 'z'], 4)
+            .unwrap()
             .binding(['x', 'x', 'x'], 5)
+            .unwrap()
             .binding(['y'], 6)
+            .unwrap()
             .build();
 
         assert_eq!(machine.input('a'), InputStateMachineResult::NeedMore);
@@ -146,5 +201,42 @@ mod tests {
         assert_eq!(machine.input('y'), InputStateMachineResult::Done(6));
 
         assert_eq!(machine.input('w'), InputStateMachineResult::Invalid);
+    }
+
+    #[test]
+    fn empty_sequence() {
+        assert_eq!(
+            InputStateMachineBuilder::<char, i32>::default()
+                .binding([], 1)
+                .unwrap_err()
+                .kind,
+            BindingErrorKind::Empty
+        );
+    }
+
+    #[test]
+    fn prefix_already_bound() {
+        assert_eq!(
+            InputStateMachineBuilder::<char, i32>::default()
+                .binding(['a'], 1)
+                .unwrap()
+                .binding(['a', 'b'], 2)
+                .unwrap_err()
+                .kind,
+            BindingErrorKind::PrefixAlreadyBound
+        );
+    }
+
+    #[test]
+    fn extention_already_bound() {
+        assert_eq!(
+            InputStateMachineBuilder::<char, i32>::default()
+                .binding(['a', 'b'], 1)
+                .unwrap()
+                .binding(['a'], 2)
+                .unwrap_err()
+                .kind,
+            BindingErrorKind::ExtensionAlreadyBound
+        );
     }
 }

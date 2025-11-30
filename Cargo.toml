@@ -8,6 +8,7 @@ bollard = "0.18"
 clap = { version = "4", features = ["derive", "wrap_help"] }
 color-eyre = "0.6"
 crossterm = "0.29"
+derive_more = { version = "2", features = ["debug", "display"] }
 ratatui = "0.29"
 tokio = "1"
 

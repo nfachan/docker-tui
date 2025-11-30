@@ -46,23 +46,29 @@ impl Default for ContainerList {
     fn default() -> Self {
         let input_state_machine = InputStateMachineBuilder::default()
             .binding([(KeyCode::Char('q'), KeyModifiers::NONE)], Command::Quit)
+            .unwrap()
             .binding([(KeyCode::Esc, KeyModifiers::NONE)], Command::Quit)
+            .unwrap()
             .binding(
                 [(KeyCode::Char('k'), KeyModifiers::NONE)],
                 Command::MoveSelectionUpOneLine,
             )
+            .unwrap()
             .binding(
                 [(KeyCode::Up, KeyModifiers::NONE)],
                 Command::MoveSelectionUpOneLine,
             )
+            .unwrap()
             .binding(
                 [(KeyCode::Char('j'), KeyModifiers::NONE)],
                 Command::MoveSelectionDownOneLine,
             )
+            .unwrap()
             .binding(
                 [(KeyCode::Down, KeyModifiers::NONE)],
                 Command::MoveSelectionDownOneLine,
             )
+            .unwrap()
             .binding(
                 [
                     (KeyCode::Char('g'), KeyModifiers::NONE),
@@ -70,50 +76,62 @@ impl Default for ContainerList {
                 ],
                 Command::MoveSelectionToFirstLine,
             )
+            .unwrap()
             .binding(
                 [(KeyCode::Home, KeyModifiers::NONE)],
                 Command::MoveSelectionToFirstLine,
             )
+            .unwrap()
             .binding(
                 [(KeyCode::Char('G'), KeyModifiers::SHIFT)],
                 Command::MoveSelectionToLastLine,
             )
+            .unwrap()
             .binding(
                 [(KeyCode::End, KeyModifiers::NONE)],
                 Command::MoveSelectionToLastLine,
             )
+            .unwrap()
             .binding(
                 [(KeyCode::Char('y'), KeyModifiers::CONTROL)],
                 Command::ScrollUpOneLine,
             )
+            .unwrap()
             .binding(
                 [(KeyCode::Char('u'), KeyModifiers::CONTROL)],
                 Command::ScrollUpHalfPage,
             )
+            .unwrap()
             .binding(
                 [(KeyCode::Char('b'), KeyModifiers::CONTROL)],
                 Command::ScrollUpFullPage,
             )
+            .unwrap()
             .binding(
                 [(KeyCode::PageUp, KeyModifiers::NONE)],
                 Command::ScrollUpFullPage,
             )
+            .unwrap()
             .binding(
                 [(KeyCode::Char('e'), KeyModifiers::CONTROL)],
                 Command::ScrollDownOneLine,
             )
+            .unwrap()
             .binding(
                 [(KeyCode::Char('d'), KeyModifiers::CONTROL)],
                 Command::ScrollDownHalfPage,
             )
+            .unwrap()
             .binding(
                 [(KeyCode::Char('f'), KeyModifiers::CONTROL)],
                 Command::ScrollDownFullPage,
             )
+            .unwrap()
             .binding(
                 [(KeyCode::PageDown, KeyModifiers::NONE)],
                 Command::ScrollDownFullPage,
             )
+            .unwrap()
             .binding(
                 [
                     (KeyCode::Char('z'), KeyModifiers::NONE),
@@ -121,6 +139,7 @@ impl Default for ContainerList {
                 ],
                 Command::ScrollSelectionToTop,
             )
+            .unwrap()
             .binding(
                 [
                     (KeyCode::Char('z'), KeyModifiers::NONE),
@@ -128,6 +147,7 @@ impl Default for ContainerList {
                 ],
                 Command::ScrollSelectionToMiddle,
             )
+            .unwrap()
             .binding(
                 [
                     (KeyCode::Char('z'), KeyModifiers::NONE),
@@ -135,6 +155,7 @@ impl Default for ContainerList {
                 ],
                 Command::ScrollSelectionToBottom,
             )
+            .unwrap()
             .build();
         Self {
             containers: Vec::default(),
