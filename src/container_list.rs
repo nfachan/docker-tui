@@ -311,11 +311,10 @@ impl Widget for &mut ContainerList {
                 .render(area, buf);
         } else {
             // Select the subset of list items we are going to render.
-            let items = self.viewport.select_for_render(
-                &self.containers[..],
-                |container| format_container(container, false),
-                |container| format_container(container, true),
-            );
+            let items = self
+                .viewport
+                .select_for_render()
+                .map(|(i, selected)| format_container(&self.containers[i], selected));
 
             // Render the list.
             Widget::render(List::new(items).block(ContainerList::block()), area, buf);

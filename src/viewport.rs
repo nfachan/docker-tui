@@ -1,4 +1,4 @@
-use std::cmp;
+use std::{cmp, iter};
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct ScrollbarParameters {
@@ -186,30 +186,18 @@ impl Viewport {
         self.validate();
     }
 
-    pub fn select_for_render<C, LI, F, G>(
-        &self,
-        containers: &[C],
-        f: F,
-        g: G,
-    ) -> impl Iterator<Item = LI>
-    where
-        F: Fn(&C) -> LI,
-        G: Fn(&C) -> LI,
-    {
-        assert_eq!(containers.len(), self.num_containers);
-        let empty_rows = (self.top + self.height).saturating_sub(self.num_containers);
-        let container_rows = self.height - empty_rows;
-        let selection_offset_in_viewport = self.selection - self.top;
-        containers[self.top..self.top + container_rows]
-            .iter()
-            .enumerate()
-            .map(move |(offset, container)| {
-                if offset == selection_offset_in_viewport {
-                    g(container)
-                } else {
-                    f(container)
-                }
+    pub fn select_for_render(&self) -> impl Iterator<Item = (usize, bool)> {
+        (self.num_containers != 0 && self.height != 0)
+            .then(|| {
+                let empty_rows = (self.top + self.height).saturating_sub(self.num_containers);
+                let container_rows = self.height - empty_rows;
+                (self.top..self.selection)
+                    .zip(iter::repeat(false))
+                    .chain(iter::once((self.selection, true)))
+                    .chain((self.selection + 1..self.top + container_rows).zip(iter::repeat(false)))
             })
+            .into_iter()
+            .flatten()
     }
 }
 
@@ -1571,5 +1559,74 @@ mod tests {
     ) {
         before.change_num_containers(num_containers);
         assert_eq!(before, after);
+    }
+
+    #[rstest]
+    #[case(viewport!(0, 0, 0, 0), [])]
+    #[case(viewport!(0, 0, 0, 1), [])]
+    #[case(viewport!(1, 0, 0, 0), [])]
+    #[case(viewport!(1, 0, 0, 1), [(0, true)])]
+    #[case(viewport!(1, 0, 0, 2), [(0, true)])]
+    #[case(viewport!(2, 0, 0, 0), [])]
+    #[case(viewport!(2, 0, 0, 1), [(0, true)])]
+    #[case(viewport!(2, 0, 0, 2), [(0, true), (1, false)])]
+    #[case(viewport!(2, 0, 0, 3), [(0, true), (1, false)])]
+    #[case(viewport!(2, 1, 1, 0), [])]
+    #[case(viewport!(2, 1, 1, 1), [(1, true)])]
+    #[case(viewport!(2, 1, 0, 2), [(0, false), (1, true)])]
+    #[case(viewport!(2, 1, 0, 3), [(0, false), (1, true)])]
+    #[case(viewport!(3, 0, 0, 0), [])]
+    #[case(viewport!(3, 0, 0, 1), [(0, true)])]
+    #[case(viewport!(3, 0, 0, 2), [(0, true), (1, false)])]
+    #[case(viewport!(3, 0, 0, 3), [(0, true), (1, false), (2, false)])]
+    #[case(viewport!(3, 0, 0, 4), [(0, true), (1, false), (2, false)])]
+    #[case(viewport!(3, 1, 1, 0), [])]
+    #[case(viewport!(3, 1, 1, 1), [(1, true)])]
+    #[case(viewport!(3, 1, 0, 2), [(0, false), (1, true)])]
+    #[case(viewport!(3, 1, 1, 2), [(1, true), (2, false)])]
+    #[case(viewport!(3, 1, 0, 3), [(0, false), (1, true), (2, false)])]
+    #[case(viewport!(3, 1, 0, 4), [(0, false), (1, true), (2, false)])]
+    #[case(viewport!(3, 2, 2, 0), [])]
+    #[case(viewport!(3, 2, 2, 1), [(2, true)])]
+    #[case(viewport!(3, 2, 1, 2), [(1, false), (2, true)])]
+    #[case(viewport!(3, 2, 0, 3), [(0, false), (1, false), (2, true)])]
+    #[case(viewport!(3, 2, 0, 4), [(0, false), (1, false), (2, true)])]
+    #[case(viewport!(4, 0, 0, 0), [])]
+    #[case(viewport!(4, 0, 0, 1), [(0, true)])]
+    #[case(viewport!(4, 0, 0, 2), [(0, true), (1, false)])]
+    #[case(viewport!(4, 0, 0, 3), [(0, true), (1, false), (2, false)])]
+    #[case(viewport!(4, 0, 0, 4), [(0, true), (1, false), (2, false), (3, false)])]
+    #[case(viewport!(4, 0, 0, 5), [(0, true), (1, false), (2, false), (3, false)])]
+    #[case(viewport!(4, 1, 1, 0), [])]
+    #[case(viewport!(4, 1, 1, 1), [(1, true)])]
+    #[case(viewport!(4, 1, 0, 2), [(0, false), (1, true)])]
+    #[case(viewport!(4, 1, 1, 2), [(1, true), (2, false)])]
+    #[case(viewport!(4, 1, 0, 3), [(0, false), (1, true), (2, false)])]
+    #[case(viewport!(4, 1, 1, 3), [(1, true), (2, false), (3, false)])]
+    #[case(viewport!(4, 1, 0, 4), [(0, false), (1, true), (2, false), (3, false)])]
+    #[case(viewport!(4, 1, 0, 5), [(0, false), (1, true), (2, false), (3, false)])]
+    #[case(viewport!(4, 2, 2, 0), [])]
+    #[case(viewport!(4, 2, 2, 1), [(2, true)])]
+    #[case(viewport!(4, 2, 1, 2), [(1, false), (2, true)])]
+    #[case(viewport!(4, 2, 2, 2), [(2, true), (3, false)])]
+    #[case(viewport!(4, 2, 0, 3), [(0, false), (1, false), (2, true)])]
+    #[case(viewport!(4, 2, 1, 3), [(1, false), (2, true), (3, false)])]
+    #[case(viewport!(4, 2, 0, 4), [(0, false), (1, false), (2, true), (3, false)])]
+    #[case(viewport!(4, 2, 0, 5), [(0, false), (1, false), (2, true), (3, false)])]
+    #[case(viewport!(4, 3, 3, 0), [])]
+    #[case(viewport!(4, 3, 3, 1), [(3, true)])]
+    #[case(viewport!(4, 3, 2, 2), [(2, false), (3, true)])]
+    #[case(viewport!(4, 3, 1, 3), [(1, false), (2, false), (3, true)])]
+    #[case(viewport!(4, 3, 0, 4), [(0, false), (1, false), (2, false), (3, true)])]
+    #[case(viewport!(4, 3, 0, 5), [(0, false), (1, false), (2, false), (3, true)])]
+    fn select_for_render(
+        #[case] viewport: Viewport,
+        #[case] expected: impl IntoIterator<Item = (usize, bool)>,
+    ) {
+        assert!(viewport.is_valid());
+        assert_eq!(
+            Vec::from_iter(viewport.select_for_render()),
+            Vec::from_iter(expected)
+        );
     }
 }
