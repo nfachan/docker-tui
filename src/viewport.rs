@@ -13,21 +13,12 @@ pub struct Viewport {
     num_containers: usize,
     #[getter(skip)]
     selection: usize,
+    #[getter(skip)]
     top: usize,
     height: usize,
 }
 
 impl Viewport {
-    pub fn scrollbar(&self) -> Option<ScrollbarParameters> {
-        (self.top != 0 || cmp::max(self.height, 1) < self.num_containers).then(|| {
-            assert!(self.num_containers + 1 > cmp::max(self.height, 1));
-            ScrollbarParameters {
-                total_items: self.num_containers + 1 - cmp::max(self.height, 1),
-                top_item: self.top,
-            }
-        })
-    }
-
     fn is_valid(&self) -> bool {
         self.num_containers == 0 && self.selection == 0 && self.top == 0
             || self.num_containers > 0
@@ -50,8 +41,20 @@ impl Viewport {
         assert!(self.is_valid());
     }
 
-    pub fn set_selection(&mut self, selection: usize) {
-        self.selection = selection;
+    pub fn scrollbar(&self) -> Option<ScrollbarParameters> {
+        (self.top != 0 || cmp::max(self.height, 1) < self.num_containers).then(|| {
+            assert!(self.num_containers + 1 > cmp::max(self.height, 1));
+            ScrollbarParameters {
+                total_items: self.num_containers + 1 - cmp::max(self.height, 1),
+                top_item: self.top,
+            }
+        })
+    }
+
+    pub fn handle_click(&mut self, row: usize) {
+        if self.top + row < self.num_containers {
+            self.selection = self.top + row;
+        }
         self.validate();
     }
 
@@ -288,6 +291,38 @@ mod tests {
                 top_item
             })
         );
+    }
+
+    #[rstest]
+    #[case(viewport!(0, 0, 0, 0), 0, viewport!(0, 0, 0, 0))]
+    #[case(viewport!(0, 0, 0, 1), 0, viewport!(0, 0, 0, 1))]
+    #[case(viewport!(0, 0, 0, 2), 0, viewport!(0, 0, 0, 2))]
+    #[case(viewport!(0, 0, 0, 2), 1, viewport!(0, 0, 0, 2))]
+    #[case(viewport!(1, 0, 0, 0), 0, viewport!(1, 0, 0, 0))]
+    #[case(viewport!(1, 0, 0, 1), 0, viewport!(1, 0, 0, 1))]
+    #[case(viewport!(1, 0, 0, 2), 0, viewport!(1, 0, 0, 2))]
+    #[case(viewport!(1, 0, 0, 2), 1, viewport!(1, 0, 0, 2))]
+    #[case(viewport!(2, 0, 0, 0), 0, viewport!(2, 0, 0, 0))]
+    #[case(viewport!(2, 0, 0, 1), 0, viewport!(2, 0, 0, 1))]
+    #[case(viewport!(2, 0, 0, 2), 0, viewport!(2, 0, 0, 2))]
+    #[case(viewport!(2, 0, 0, 2), 1, viewport!(2, 1, 0, 2))]
+    #[case(viewport!(2, 0, 0, 3), 0, viewport!(2, 0, 0, 3))]
+    #[case(viewport!(2, 0, 0, 3), 1, viewport!(2, 1, 0, 3))]
+    #[case(viewport!(2, 0, 0, 3), 2, viewport!(2, 0, 0, 3))]
+    #[case(viewport!(2, 1, 1, 0), 0, viewport!(2, 1, 1, 0))]
+    #[case(viewport!(2, 1, 1, 1), 0, viewport!(2, 1, 1, 1))]
+    #[case(viewport!(2, 1, 0, 2), 0, viewport!(2, 0, 0, 2))]
+    #[case(viewport!(2, 1, 0, 2), 1, viewport!(2, 1, 0, 2))]
+    #[case(viewport!(2, 1, 0, 3), 0, viewport!(2, 0, 0, 3))]
+    #[case(viewport!(2, 1, 0, 3), 1, viewport!(2, 1, 0, 3))]
+    #[case(viewport!(2, 1, 0, 3), 2, viewport!(2, 1, 0, 3))]
+    fn handle_click(
+        #[case] mut viewport: Viewport,
+        #[case] row: usize,
+        #[case] expected: Viewport,
+    ) {
+        viewport.handle_click(row);
+        assert_eq!(viewport, expected);
     }
 
     #[rstest]

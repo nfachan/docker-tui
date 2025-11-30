@@ -233,12 +233,8 @@ impl ContainerList {
                 let position = Position::new(event.column, event.row);
                 let last_inner_area = Self::block().inner(self.last_area);
                 if last_inner_area.contains(position) {
-                    let new_selection = usize::from(position.y)
-                        - usize::from(last_inner_area.top())
-                        + self.viewport.top();
-                    if new_selection < self.containers.len() {
-                        self.viewport.set_selection(new_selection);
-                    }
+                    self.viewport
+                        .handle_click(usize::from(position.y - last_inner_area.top()));
                 }
             }
             _ => {}
