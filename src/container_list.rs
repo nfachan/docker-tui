@@ -39,7 +39,7 @@ pub struct ContainerList {
     containers: Vec<Container>,
     viewport: Viewport,
     input_state_machine: InputStateMachine<(KeyCode, KeyModifiers), Command>,
-    last_area: Rect,
+    area: Rect,
 }
 
 impl Default for ContainerList {
@@ -161,7 +161,7 @@ impl Default for ContainerList {
             containers: Vec::default(),
             viewport: Viewport::default(),
             input_state_machine,
-            last_area: Rect::ZERO,
+            area: Rect::ZERO,
         }
     }
 }
@@ -246,19 +246,20 @@ impl ContainerList {
             }
             MouseEventKind::Down(MouseButton::Left) => {
                 let position = Position::new(event.column, event.row);
-                let last_inner_area = Self::block().inner(self.last_area);
-                if last_inner_area.contains(position) {
+                let inner_area = Self::block().inner(self.area);
+                if inner_area.contains(position) {
                     self.viewport
-                        .handle_click(usize::from(position.y - last_inner_area.top()));
+                        .handle_click(usize::from(position.y - inner_area.top()));
                 }
             }
             _ => {}
         }
     }
 
-    pub fn handle_resize(&mut self, height: u16) {
-        let viewport_height = Self::block().inner(Rect::new(0, 0, 1, height)).height;
+    pub fn handle_resize(&mut self, area: Rect) {
+        let viewport_height = Self::block().inner(area).height;
         self.viewport.change_viewport_height(viewport_height.into());
+        self.area = area;
     }
 
     pub fn handle_containers(&mut self, containers: Vec<Container>) {
@@ -299,10 +300,9 @@ fn format_container(container: &Container, is_selected: bool) -> ListItem<'stati
 impl Widget for &mut ContainerList {
     fn render(self, area: Rect, buf: &mut Buffer) {
         // We may not always get a resize event before some other event that causes a redraw.
-        if area != self.last_area {
-            self.handle_resize(area.height);
+        if area != self.area {
+            self.handle_resize(area);
         }
-        self.last_area = area;
 
         if self.containers.is_empty() {
             // Handle special case of no containers.

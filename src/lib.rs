@@ -6,6 +6,7 @@ use docker::Container;
 use ratatui::{
     Terminal,
     backend::{Backend, CrosstermBackend},
+    layout::Rect,
 };
 use std::{io, ops::ControlFlow, panic, thread};
 use tokio::sync::mpsc;
@@ -44,8 +45,8 @@ fn main_loop(docker: Docker, mut terminal: Terminal<impl Backend>) -> Result<()>
             Event::Input(Ok(input::Event::Mouse(event))) => {
                 container_list.handle_mouse_event(event);
             }
-            Event::Input(Ok(input::Event::Resize(_, rows))) => {
-                container_list.handle_resize(rows);
+            Event::Input(Ok(input::Event::Resize(columns, rows))) => {
+                container_list.handle_resize(Rect::new(0, 0, columns, rows));
             }
             Event::Input(Ok(
                 input::Event::FocusGained | input::Event::FocusLost | input::Event::Paste(_),
