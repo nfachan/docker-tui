@@ -10,9 +10,10 @@ use ratatui::{
     buffer::Buffer,
     layout::{Margin, Position, Rect},
     style::{Modifier, Stylize as _},
+    text::Span,
     widgets::{
-        Block, List, ListItem, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState,
-        StatefulWidget as _, Widget,
+        Block, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState, StatefulWidget as _,
+        Widget,
     },
 };
 use std::ops::ControlFlow;
@@ -268,7 +269,7 @@ impl ContainerList {
     }
 }
 
-fn format_container(container: &Container, is_selected: bool) -> ListItem<'static> {
+fn format_container(container: &Container, is_selected: bool) -> Span<'static> {
     let name = match &container.names {
         None => "[]".to_string(),
         Some(names) => match &names
@@ -288,11 +289,11 @@ fn format_container(container: &Container, is_selected: bool) -> ListItem<'stati
         },
     };
     let status = container.status.as_deref().unwrap_or("N/A");
-    let list_item = ListItem::new(format!("{name} - {status}"));
+    let result = Span::from(format!("{name} - {status}"));
     if is_selected {
-        list_item.add_modifier(Modifier::REVERSED)
+        result.add_modifier(Modifier::REVERSED)
     } else {
-        list_item
+        result
     }
 }
 
@@ -303,20 +304,38 @@ impl Widget for &mut ContainerList {
             self.handle_resize(area);
         }
 
+        let block = ContainerList::block();
         if self.containers.is_empty() {
             // Handle special case of no containers.
             Paragraph::new("no containers")
-                .block(ContainerList::block())
+                .block(block)
                 .render(area, buf);
         } else {
-            // Select the subset of list items we are going to render.
+            let inner_area = block.inner(area);
+
+            // Select the items to render.
             let items = self
                 .viewport
                 .select_for_render()
                 .map(|(i, selected)| format_container(&self.containers[i], selected));
 
-            // Render the list.
-            Widget::render(List::new(items).block(ContainerList::block()), area, buf);
+            // Render the block.
+            block.render(area, buf);
+
+            // Render the items.
+            for (i, item) in items.enumerate() {
+                item.render(
+                    Rect::new(
+                        inner_area.x,
+                        inner_area
+                            .y
+                            .saturating_add(i.try_into().unwrap_or(u16::MAX)),
+                        inner_area.width,
+                        1,
+                    ),
+                    buf,
+                );
+            }
 
             // Possibly render a scrollbar.
             if let Some(scrollbar_parameters) = self.viewport.scrollbar() {
