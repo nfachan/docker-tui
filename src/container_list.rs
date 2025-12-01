@@ -9,7 +9,7 @@ use crossterm::event::{
 use ratatui::{
     buffer::Buffer,
     layout::{Margin, Position, Rect},
-    style::{Modifier, Stylize as _},
+    style::{Modifier, Style},
     text::Span,
     widgets::{
         Block, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState, StatefulWidget as _,
@@ -269,10 +269,7 @@ impl ContainerList {
     }
 }
 
-fn format_container<'a>(
-    container: &'a Container,
-    is_selected: bool,
-) -> impl Iterator<Item = Span<'a>> {
+fn format_container<'a>(container: &'a Container) -> impl Iterator<Item = Span<'a>> {
     [
         match &container.names {
             None => "[]".into(),
@@ -298,13 +295,6 @@ fn format_container<'a>(
         container.status.as_deref().unwrap_or("N/A").into(),
     ]
     .into_iter()
-    .map(move |cell: Span<'a>| {
-        if is_selected {
-            cell.add_modifier(Modifier::REVERSED)
-        } else {
-            cell
-        }
-    })
 }
 
 impl Widget for &mut ContainerList {
@@ -323,29 +313,40 @@ impl Widget for &mut ContainerList {
         } else {
             let inner_area = block.inner(area);
 
-            // Select the items to render.
-            let items = self
-                .viewport
-                .select_for_render()
-                .map(|(i, selected)| format_container(&self.containers[i], selected));
-
             // Render the block.
             block.render(area, buf);
 
             let offset_widths = [(0u16, 30u16), (31u16, 30u16)];
 
             // Render the items.
-            for (i, line) in items.enumerate() {
-                for (j, cell) in line.into_iter().enumerate() {
+            for (row_index, (selected, line)) in self
+                .viewport
+                .select_for_render()
+                .map(|(i, selected)| (selected, format_container(&self.containers[i])))
+                .enumerate()
+            {
+                let row_area = Rect::new(
+                    inner_area.x,
+                    inner_area
+                        .y
+                        .saturating_add(row_index.try_into().unwrap_or(u16::MAX)),
+                    inner_area.width,
+                    1,
+                );
+                let row_style = if selected {
+                    Style::default().add_modifier(Modifier::REVERSED)
+                } else {
+                    Style::default()
+                };
+                buf.set_style(row_area, row_style);
+                for (column_index, cell) in line.into_iter().enumerate() {
                     Widget::render(
                         cell,
                         Rect::new(
-                            inner_area.x + offset_widths[j].0,
-                            inner_area
-                                .y
-                                .saturating_add(i.try_into().unwrap_or(u16::MAX)),
-                            offset_widths[j].1,
-                            1,
+                            row_area.x + offset_widths[column_index].0,
+                            row_area.y,
+                            offset_widths[column_index].1,
+                            row_area.height,
                         ),
                         buf,
                     );
