@@ -280,21 +280,36 @@ impl ContainerList {
     }
 }
 
+#[derive(Clone, Copy)]
+enum ContainerField {
+    Names,
+    Status,
+}
+
+impl ContainerField {
+    fn format<'a>(self, container: &'a Container) -> Span<'a> {
+        match self {
+            Self::Names => match &container.names {
+                None => "[]".into(),
+                Some(names) => match &names
+                    .iter()
+                    .map(|name| name.trim_start_matches('/'))
+                    .collect::<Vec<_>>()[..]
+                {
+                    [] => "[]".into(),
+                    [name] => (*name).into(),
+                    names => names.iter().join(", ").into(),
+                },
+            },
+            Self::Status => container.status.as_deref().unwrap_or("N/A").into(),
+        }
+    }
+}
+
 fn format_container<'a>(container: &'a Container) -> impl Iterator<Item = Span<'a>> {
     [
-        match &container.names {
-            None => "[]".into(),
-            Some(names) => match &names
-                .iter()
-                .map(|name| name.trim_start_matches('/'))
-                .collect::<Vec<_>>()[..]
-            {
-                [] => "[]".into(),
-                [name] => (*name).into(),
-                names => names.iter().join(", ").into(),
-            },
-        },
-        container.status.as_deref().unwrap_or("N/A").into(),
+        ContainerField::Names.format(container),
+        ContainerField::Status.format(container),
     ]
     .into_iter()
 }
