@@ -269,32 +269,42 @@ impl ContainerList {
     }
 }
 
-fn format_container(container: &Container, is_selected: bool) -> Span<'static> {
-    let name = match &container.names {
-        None => "[]".to_string(),
-        Some(names) => match &names
-            .iter()
-            .map(|name| name.trim_start_matches('/'))
-            .collect::<Vec<_>>()[..]
-        {
-            [] => "[]".to_string(),
-            [name] => name.to_string(),
-            names => names.iter().fold("".to_string(), |accum, name| {
-                if accum.is_empty() {
-                    name.to_string()
-                } else {
-                    format!("{accum}, {name}")
-                }
-            }),
+fn format_container<'a>(
+    container: &'a Container,
+    is_selected: bool,
+) -> impl Iterator<Item = Span<'a>> {
+    [
+        match &container.names {
+            None => "[]".into(),
+            Some(names) => match &names
+                .iter()
+                .map(|name| name.trim_start_matches('/'))
+                .collect::<Vec<_>>()[..]
+            {
+                [] => "[]".into(),
+                [name] => (*name).into(),
+                names => names
+                    .iter()
+                    .fold("".to_string(), |accum, name| {
+                        if accum.is_empty() {
+                            name.to_string()
+                        } else {
+                            format!("{accum}, {name}")
+                        }
+                    })
+                    .into(),
+            },
         },
-    };
-    let status = container.status.as_deref().unwrap_or("N/A");
-    let result = Span::from(format!("{name} - {status}"));
-    if is_selected {
-        result.add_modifier(Modifier::REVERSED)
-    } else {
-        result
-    }
+        container.status.as_deref().unwrap_or("N/A").into(),
+    ]
+    .into_iter()
+    .map(move |cell: Span<'a>| {
+        if is_selected {
+            cell.add_modifier(Modifier::REVERSED)
+        } else {
+            cell
+        }
+    })
 }
 
 impl Widget for &mut ContainerList {
@@ -322,19 +332,24 @@ impl Widget for &mut ContainerList {
             // Render the block.
             block.render(area, buf);
 
+            let offset_widths = [(0u16, 30u16), (31u16, 30u16)];
+
             // Render the items.
-            for (i, item) in items.enumerate() {
-                item.render(
-                    Rect::new(
-                        inner_area.x,
-                        inner_area
-                            .y
-                            .saturating_add(i.try_into().unwrap_or(u16::MAX)),
-                        inner_area.width,
-                        1,
-                    ),
-                    buf,
-                );
+            for (i, line) in items.enumerate() {
+                for (j, cell) in line.into_iter().enumerate() {
+                    Widget::render(
+                        cell,
+                        Rect::new(
+                            inner_area.x + offset_widths[j].0,
+                            inner_area
+                                .y
+                                .saturating_add(i.try_into().unwrap_or(u16::MAX)),
+                            offset_widths[j].1,
+                            1,
+                        ),
+                        buf,
+                    );
+                }
             }
 
             // Possibly render a scrollbar.
