@@ -336,11 +336,8 @@ impl Widget for &mut ContainerList {
             let offset_widths = [(0u16, 30u16), (31u16, 30u16)];
 
             // Render the items.
-            for (row_index, (selected, line)) in self
-                .viewport
-                .select_for_render()
-                .map(|(i, selected)| (selected, format_container(&self.containers[i])))
-                .enumerate()
+            for (row_index, (container_index, selected)) in
+                self.viewport.select_for_render().enumerate()
             {
                 let row_area = Rect::new(
                     inner_area.x,
@@ -355,7 +352,8 @@ impl Widget for &mut ContainerList {
                     row_style = row_style.patch(self.selected_line_style)
                 }
                 buf.set_style(row_area, row_style);
-                for (column_index, cell) in line.into_iter().enumerate() {
+                let row = format_container(&self.containers[container_index]);
+                for (column_index, cell) in row.enumerate() {
                     Widget::render(
                         cell,
                         Rect::new(
