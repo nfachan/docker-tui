@@ -269,7 +269,6 @@ impl ContainerList {
 }
 
 fn format_container(container: &Container, is_selected: bool) -> ListItem<'static> {
-    let prefix = if is_selected { ">" } else { " " };
     let name = match &container.names {
         None => "[]".to_string(),
         Some(names) => match &names
@@ -289,7 +288,7 @@ fn format_container(container: &Container, is_selected: bool) -> ListItem<'stati
         },
     };
     let status = container.status.as_deref().unwrap_or("N/A");
-    let list_item = ListItem::new(format!("{prefix} {name} - {status}"));
+    let list_item = ListItem::new(format!("{name} - {status}"));
     if is_selected {
         list_item.add_modifier(Modifier::REVERSED)
     } else {
