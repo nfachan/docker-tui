@@ -6,6 +6,7 @@ use crate::{
 use crossterm::event::{
     KeyCode, KeyEvent, KeyEventKind, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
 };
+use itertools::Itertools as _;
 use ratatui::{
     buffer::Buffer,
     layout::{Margin, Position, Rect},
@@ -280,16 +281,7 @@ fn format_container<'a>(container: &'a Container) -> impl Iterator<Item = Span<'
             {
                 [] => "[]".into(),
                 [name] => (*name).into(),
-                names => names
-                    .iter()
-                    .fold("".to_string(), |accum, name| {
-                        if accum.is_empty() {
-                            name.to_string()
-                        } else {
-                            format!("{accum}, {name}")
-                        }
-                    })
-                    .into(),
+                names => names.iter().join(", ").into(),
             },
         },
         container.status.as_deref().unwrap_or("N/A").into(),
