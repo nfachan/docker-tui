@@ -42,6 +42,8 @@ pub struct ContainerList {
     viewport: Viewport,
     input_state_machine: InputStateMachine<(KeyCode, KeyModifiers), Command>,
     area: Rect,
+    style: Style,
+    block_style: Style,
     line_style: Style,
     selected_line_style: Style,
 }
@@ -166,15 +168,19 @@ impl Default for ContainerList {
             viewport: Viewport::default(),
             input_state_machine,
             area: Rect::ZERO,
-            line_style: Style::default().light_blue(),
+            style: Style::default().light_blue(),
+            block_style: Style::default().red(),
+            line_style: Style::default(),
             selected_line_style: Style::default().reversed(),
         }
     }
 }
 
 impl ContainerList {
-    fn block() -> Block<'static> {
-        Block::bordered().title("Containers")
+    fn block(&self) -> Block<'static> {
+        Block::bordered()
+            .title("Containers")
+            .style(self.style.patch(self.block_style))
     }
 
     fn handle_command(&mut self, command: Command) -> ControlFlow<()> {
@@ -252,7 +258,7 @@ impl ContainerList {
             }
             MouseEventKind::Down(MouseButton::Left) => {
                 let position = Position::new(event.column, event.row);
-                let inner_area = Self::block().inner(self.area);
+                let inner_area = self.block().inner(self.area);
                 if inner_area.contains(position) {
                     self.viewport
                         .handle_click(usize::from(position.y - inner_area.top()));
@@ -263,7 +269,7 @@ impl ContainerList {
     }
 
     pub fn handle_resize(&mut self, area: Rect) {
-        let viewport_height = Self::block().inner(area).height;
+        let viewport_height = self.block().inner(area).height;
         self.viewport.change_viewport_height(viewport_height.into());
         self.area = area;
     }
@@ -300,7 +306,7 @@ impl Widget for &mut ContainerList {
             self.handle_resize(area);
         }
 
-        let block = ContainerList::block();
+        let block = self.block();
         if self.containers.is_empty() {
             // Handle special case of no containers.
             Paragraph::new("no containers")
@@ -329,7 +335,7 @@ impl Widget for &mut ContainerList {
                     inner_area.width,
                     1,
                 );
-                let mut row_style = self.line_style;
+                let mut row_style = self.style.patch(self.line_style);
                 if selected {
                     row_style = row_style.patch(self.selected_line_style)
                 }
@@ -351,6 +357,7 @@ impl Widget for &mut ContainerList {
             // Possibly render a scrollbar.
             if let Some(scrollbar_parameters) = self.viewport.scrollbar() {
                 Scrollbar::new(ScrollbarOrientation::VerticalRight)
+                    .style(self.style.patch(self.block_style))
                     .begin_symbol(None)
                     .end_symbol(None)
                     .track_symbol(None)
