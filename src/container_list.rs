@@ -10,7 +10,7 @@ use itertools::Itertools as _;
 use ratatui::{
     buffer::Buffer,
     layout::{Margin, Position, Rect},
-    style::{Modifier, Style},
+    style::{Style, Stylize as _},
     text::Span,
     widgets::{
         Block, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState, StatefulWidget as _,
@@ -42,6 +42,8 @@ pub struct ContainerList {
     viewport: Viewport,
     input_state_machine: InputStateMachine<(KeyCode, KeyModifiers), Command>,
     area: Rect,
+    line_style: Style,
+    selected_line_style: Style,
 }
 
 impl Default for ContainerList {
@@ -164,6 +166,8 @@ impl Default for ContainerList {
             viewport: Viewport::default(),
             input_state_machine,
             area: Rect::ZERO,
+            line_style: Style::default().light_blue(),
+            selected_line_style: Style::default().reversed(),
         }
     }
 }
@@ -325,11 +329,10 @@ impl Widget for &mut ContainerList {
                     inner_area.width,
                     1,
                 );
-                let row_style = if selected {
-                    Style::default().add_modifier(Modifier::REVERSED)
-                } else {
-                    Style::default()
-                };
+                let mut row_style = self.line_style;
+                if selected {
+                    row_style = row_style.patch(self.selected_line_style)
+                }
                 buf.set_style(row_area, row_style);
                 for (column_index, cell) in line.into_iter().enumerate() {
                     Widget::render(
