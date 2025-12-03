@@ -46,6 +46,8 @@ pub struct ContainerList {
     block_style: Style,
     line_style: Style,
     selected_line_style: Style,
+    fields: Vec<ContainerField>,
+    field_layouts: Vec<FieldLayout>,
 }
 
 impl Default for ContainerList {
@@ -172,6 +174,25 @@ impl Default for ContainerList {
             block_style: Style::default().red(),
             line_style: Style::default(),
             selected_line_style: Style::default().reversed(),
+            fields: vec![
+                ContainerField::Id,
+                ContainerField::Names,
+                ContainerField::Status,
+            ],
+            field_layouts: vec![
+                FieldLayout {
+                    x: 0u16,
+                    width: 8u16,
+                },
+                FieldLayout {
+                    x: 9u16,
+                    width: 39u16,
+                },
+                FieldLayout {
+                    x: 40u16,
+                    width: 30u16,
+                },
+            ],
         }
     }
 }
@@ -332,26 +353,6 @@ impl Widget for &mut ContainerList {
             // Render the block.
             block.render(area, buf);
 
-            let field_layouts = [
-                FieldLayout {
-                    x: 0u16,
-                    width: 8u16,
-                },
-                FieldLayout {
-                    x: 9u16,
-                    width: 39u16,
-                },
-                FieldLayout {
-                    x: 40u16,
-                    width: 30u16,
-                },
-            ];
-            let fields = [
-                ContainerField::Id,
-                ContainerField::Names,
-                ContainerField::Status,
-            ];
-
             // Render the items.
             for (row_index, (container_index, selected)) in
                 self.viewport.select_for_render().enumerate()
@@ -369,7 +370,7 @@ impl Widget for &mut ContainerList {
                     row_style = row_style.patch(self.selected_line_style)
                 }
                 buf.set_style(row_area, row_style);
-                for (column, field) in field_layouts.iter().zip(fields) {
+                for (column, field) in self.field_layouts.iter().zip(self.fields.iter()) {
                     field.format(&self.containers[container_index]).render(
                         Rect::new(
                             row_area.x + column.x,
