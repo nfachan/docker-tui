@@ -204,10 +204,10 @@ impl ContainerList {
             .style(self.style.patch(self.block_style))
     }
 
-    fn handle_command(&mut self, command: Command) -> Result<Option<MessageOut>> {
+    fn handle_command(&mut self, command: Command) -> Option<MessageOut> {
         match command {
             Command::Quit => {
-                return Ok(Some(MessageOut::Exit));
+                return Some(MessageOut::Exit);
             }
             Command::MoveSelectionUpOneLine => {
                 self.viewport.move_selection_up_one_line();
@@ -247,26 +247,28 @@ impl ContainerList {
                 self.viewport.scroll_selection_to_bottom();
             }
         }
-        Ok(None)
+        None
     }
 
-    pub fn handle_key_event(&mut self, event: KeyEvent) -> Result<Option<MessageOut>> {
+    pub fn handle_key_event(&mut self, event: KeyEvent) -> Option<MessageOut> {
         if event.kind == KeyEventKind::Press {
             match self
                 .input_state_machine
                 .input((event.code, event.modifiers))
             {
-                InputResult::Done(command) => return self.handle_command(command),
+                InputResult::Done(command) => {
+                    return self.handle_command(command);
+                }
                 InputResult::NeedMore => {}
                 InputResult::Invalid => {
                     print!("\x07"); // ASCII BEL to STDOUT
                 }
             }
         }
-        Ok(None)
+        None
     }
 
-    pub fn handle_mouse_event(&mut self, event: MouseEvent) {
+    pub fn handle_mouse_event(&mut self, event: MouseEvent) -> Option<MessageOut> {
         match event.kind {
             MouseEventKind::ScrollDown => {
                 self.viewport.scroll_down_n_lines(3);
@@ -282,11 +284,14 @@ impl ContainerList {
                         .handle_click(usize::from(position.y - inner_area.top()));
                 }
             }
-            _ => {}
+            _ => {
+                return None;
+            }
         }
+        None
     }
 
-    pub fn handle_resize(&mut self, area: Rect) {
+    pub fn handle_resize(&mut self, area: Rect) -> Option<MessageOut> {
         let block = self.block();
         let inner_area = block.inner(area);
         self.viewport
@@ -319,14 +324,19 @@ impl ContainerList {
                 width: area.width,
             })
             .collect()
-        }
+        };
+
+        None
     }
 
-    pub fn handle_docker_response(&mut self, response: docker::MessageOut) -> Result<()> {
+    pub fn handle_docker_response(
+        &mut self,
+        response: docker::MessageOut,
+    ) -> Result<Option<MessageOut>> {
         let docker::MessageOut::GetContainers(containers) = response;
         self.containers = containers?;
         self.viewport.change_num_containers(self.containers.len());
-        Ok(())
+        Ok(None)
     }
 }
 

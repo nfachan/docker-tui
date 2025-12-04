@@ -78,18 +78,21 @@ impl App {
 
         self.terminal
             .draw(|frame| frame.render_widget(&mut self.container_list, frame.area()))?;
+
         while let Some(event) = self.receiver.blocking_recv() {
             let mut messages_out = vec![];
             match event {
                 Event::Input(Ok(input::Event::Key(event))) => {
-                    messages_out.extend(self.container_list.handle_key_event(event)?);
+                    messages_out.extend(self.container_list.handle_key_event(event));
                 }
                 Event::Input(Ok(input::Event::Mouse(event))) => {
-                    self.container_list.handle_mouse_event(event);
+                    messages_out.extend(self.container_list.handle_mouse_event(event));
                 }
                 Event::Input(Ok(input::Event::Resize(columns, rows))) => {
-                    self.container_list
-                        .handle_resize(Rect::new(0, 0, columns, rows));
+                    messages_out.extend(
+                        self.container_list
+                            .handle_resize(Rect::new(0, 0, columns, rows)),
+                    );
                 }
                 Event::Input(Ok(
                     input::Event::FocusGained | input::Event::FocusLost | input::Event::Paste(_),
@@ -100,7 +103,7 @@ impl App {
                     return Err(err);
                 }
                 Event::FromDocker(message) => {
-                    self.container_list.handle_docker_response(message)?;
+                    messages_out.extend(self.container_list.handle_docker_response(message)?);
                 }
             }
             if let ControlFlow::Break(_) = self.handle_container_list_events(messages_out)? {
