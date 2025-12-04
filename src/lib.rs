@@ -30,7 +30,10 @@ struct App {
 }
 
 impl App {
-    fn new(docker: Docker, terminal: Terminal<CrosstermBackend<Stdout>>) -> Result<Self> {
+    fn new(
+        docker: Docker,
+        terminal: Terminal<CrosstermBackend<Stdout>>,
+    ) -> (Self, Vec<container_list::MessageOut>) {
         const CHANNEL_SLOTS: usize = 10;
         let (docker_sender, docker_receiver) = mpsc::unbounded_channel();
         let (sender, receiver) = mpsc::channel(CHANNEL_SLOTS);
@@ -47,18 +50,15 @@ impl App {
         // Create the ContainerList.
         let (container_list, messages_out) = ContainerList::new();
 
-        let mut result = Self {
-            docker_sender,
-            receiver,
-            container_list,
-            terminal,
-        };
-
-        // Handle any of the events the ContainerList generated.
-        let control_flow = result.handle_container_list_events(messages_out)?;
-        assert!(matches!(control_flow, ControlFlow::Continue(_)));
-
-        Ok(result)
+        (
+            Self {
+                docker_sender,
+                receiver,
+                container_list,
+                terminal,
+            },
+            messages_out,
+        )
     }
 
     fn handle_container_list_events(
@@ -118,7 +118,13 @@ fn main_start_up(docker: Docker) -> Result<()> {
     execute!(stdout, cursor::Hide)?;
     execute!(stdout, event::EnableMouseCapture)?;
 
-    App::new(docker, Terminal::new(CrosstermBackend::new(stdout))?)?.main_loop()
+    let (mut app, initial_messages) =
+        App::new(docker, Terminal::new(CrosstermBackend::new(stdout))?);
+    if let ControlFlow::Continue(_) = app.handle_container_list_events(initial_messages)? {
+        app.main_loop()?;
+    }
+
+    Ok(())
 }
 
 fn main_clean_up() -> Result<()> {
