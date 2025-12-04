@@ -22,9 +22,26 @@ pub enum Event {
     FromDocker(docker::MessageOut),
 }
 
+fn handle_container_list_events(
+    messages: impl IntoIterator<Item = container_list::MessageOut>,
+    docker_sender: &mut mpsc::UnboundedSender<docker::MessageIn>,
+) -> Result<ControlFlow<()>> {
+    for message in messages {
+        match message {
+            container_list::MessageOut::Exit => {
+                return Ok(ControlFlow::Break(()));
+            }
+            container_list::MessageOut::ToDocker(docker_message) => {
+                docker_sender.send(docker_message)?
+            }
+        }
+    }
+    Ok(ControlFlow::Continue(()))
+}
+
 fn main_loop(docker: Docker, mut terminal: Terminal<impl Backend>) -> Result<()> {
     const CHANNEL_SLOTS: usize = 10;
-    let (docker_sender, docker_receiver) = mpsc::unbounded_channel();
+    let (mut docker_sender, docker_receiver) = mpsc::unbounded_channel();
     let (sender, mut receiver) = mpsc::channel(CHANNEL_SLOTS);
 
     // Spawn the docker thread.
@@ -40,11 +57,10 @@ fn main_loop(docker: Docker, mut terminal: Terminal<impl Backend>) -> Result<()>
 
     terminal.draw(|frame| frame.render_widget(&mut container_list, frame.area()))?;
     while let Some(event) = receiver.blocking_recv() {
+        let mut messages_out = vec![];
         match event {
             Event::Input(Ok(input::Event::Key(event))) => {
-                if let ControlFlow::Break(_) = container_list.handle_key_event(event) {
-                    break;
-                }
+                messages_out.extend(container_list.handle_key_event(event)?);
             }
             Event::Input(Ok(input::Event::Mouse(event))) => {
                 container_list.handle_mouse_event(event);
@@ -63,6 +79,11 @@ fn main_loop(docker: Docker, mut terminal: Terminal<impl Backend>) -> Result<()>
             Event::FromDocker(message) => {
                 container_list.handle_docker_response(message)?;
             }
+        }
+        if let ControlFlow::Break(_) =
+            handle_container_list_events(messages_out, &mut docker_sender)?
+        {
+            return Ok(());
         }
         terminal.draw(|frame| frame.render_widget(&mut container_list, frame.area()))?;
     }

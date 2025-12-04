@@ -20,10 +20,14 @@ use ratatui::{
 };
 use std::{
     cmp, iter,
-    ops::ControlFlow,
     time::{Duration, UNIX_EPOCH},
 };
 use timeago::Formatter;
+
+pub enum MessageOut {
+    Exit,
+    ToDocker(docker::MessageIn),
+}
 
 #[derive(Copy, Clone)]
 enum Command {
@@ -200,10 +204,10 @@ impl ContainerList {
             .style(self.style.patch(self.block_style))
     }
 
-    fn handle_command(&mut self, command: Command) -> ControlFlow<()> {
+    fn handle_command(&mut self, command: Command) -> Result<Option<MessageOut>> {
         match command {
             Command::Quit => {
-                return ControlFlow::Break(());
+                return Ok(Some(MessageOut::Exit));
             }
             Command::MoveSelectionUpOneLine => {
                 self.viewport.move_selection_up_one_line();
@@ -243,10 +247,10 @@ impl ContainerList {
                 self.viewport.scroll_selection_to_bottom();
             }
         }
-        ControlFlow::Continue(())
+        Ok(None)
     }
 
-    pub fn handle_key_event(&mut self, event: KeyEvent) -> ControlFlow<()> {
+    pub fn handle_key_event(&mut self, event: KeyEvent) -> Result<Option<MessageOut>> {
         if event.kind == KeyEventKind::Press {
             match self
                 .input_state_machine
@@ -259,7 +263,7 @@ impl ContainerList {
                 }
             }
         }
-        ControlFlow::Continue(())
+        Ok(None)
     }
 
     pub fn handle_mouse_event(&mut self, event: MouseEvent) {
