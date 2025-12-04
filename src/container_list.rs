@@ -5,7 +5,7 @@ use crate::{
 };
 use color_eyre::Result;
 use crossterm::event::{
-    KeyCode, KeyEvent, KeyEventKind, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
+    Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
 };
 use itertools::Itertools;
 use ratatui::{
@@ -251,7 +251,7 @@ impl ContainerList {
         Some(MessageOut::Render)
     }
 
-    pub fn handle_key_event(&mut self, event: KeyEvent) -> Option<MessageOut> {
+    fn handle_key_event(&mut self, event: KeyEvent) -> Option<MessageOut> {
         if event.kind == KeyEventKind::Press {
             match self
                 .input_state_machine
@@ -269,7 +269,7 @@ impl ContainerList {
         None
     }
 
-    pub fn handle_mouse_event(&mut self, event: MouseEvent) -> Option<MessageOut> {
+    fn handle_mouse_event(&mut self, event: MouseEvent) -> Option<MessageOut> {
         match event.kind {
             MouseEventKind::ScrollDown => {
                 self.viewport.scroll_down_n_lines(3);
@@ -292,7 +292,7 @@ impl ContainerList {
         Some(MessageOut::Render)
     }
 
-    pub fn handle_resize(&mut self, area: Rect) -> Option<MessageOut> {
+    fn handle_resize(&mut self, area: Rect) -> Option<MessageOut> {
         let block = self.block();
         let inner_area = block.inner(area);
         self.viewport
@@ -328,6 +328,15 @@ impl ContainerList {
         };
 
         Some(MessageOut::Render)
+    }
+
+    pub fn handle_input_event(&mut self, event: Event) -> Option<MessageOut> {
+        match event {
+            Event::Key(event) => self.handle_key_event(event),
+            Event::Mouse(event) => self.handle_mouse_event(event),
+            Event::Resize(columns, rows) => self.handle_resize(Rect::new(0, 0, columns, rows)),
+            Event::FocusGained | Event::FocusLost | Event::Paste(_) => None,
+        }
     }
 
     pub fn handle_docker_response(
