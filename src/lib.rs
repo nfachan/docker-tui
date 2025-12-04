@@ -14,12 +14,14 @@ mod container_list;
 mod docker;
 mod input;
 mod input_state_machine;
+mod timer;
 mod viewport;
 
 #[derive(Debug)]
 pub enum Event {
     Input(Result<input::Event>),
     FromDocker(Result<docker::MessageOut>),
+    FromTimer(timer::MessageOut),
 }
 
 struct App {
@@ -36,6 +38,7 @@ impl App {
     ) -> (Self, Vec<container_list::MessageOut>) {
         const CHANNEL_SLOTS: usize = 10;
         let (docker_sender, docker_receiver) = mpsc::unbounded_channel();
+        let (_timer_sender, timer_receiver) = mpsc::unbounded_channel();
         let (sender, receiver) = mpsc::channel(CHANNEL_SLOTS);
 
         // Spawn the docker thread.
@@ -43,6 +46,10 @@ impl App {
         thread::spawn(move || {
             docker::main(docker, docker_receiver, sender_clone, Event::FromDocker)
         });
+
+        // Spawn the timer thread.
+        let sender_clone = sender.clone();
+        thread::spawn(move || timer::main(timer_receiver, sender_clone, Event::FromTimer));
 
         // Spawn input event thread.
         thread::spawn(move || input::main(sender));
@@ -90,6 +97,7 @@ impl App {
                 Event::FromDocker(Ok(message)) => {
                     self.container_list.handle_docker_response(message)
                 }
+                Event::FromTimer(event) => self.container_list.handle_timer_event(event),
                 Event::Input(Err(err)) | Event::FromDocker(Err(err)) => {
                     return Err(err);
                 }

@@ -1,6 +1,7 @@
 use crate::{
     docker::{self, Container},
     input_state_machine::{Builder, InputResult, InputStateMachine},
+    timer,
     viewport::Viewport,
 };
 use crossterm::event::{
@@ -347,6 +348,10 @@ impl ContainerList {
         self.containers = containers;
         self.viewport.change_num_containers(self.containers.len());
         Some(MessageOut::Render)
+    }
+
+    pub fn handle_timer_event(&mut self, _event: timer::MessageOut) -> Option<MessageOut> {
+        todo!();
     }
 }
 
