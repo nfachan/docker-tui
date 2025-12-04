@@ -17,7 +17,12 @@ use ratatui::{
         Widget,
     },
 };
-use std::{cmp, iter, ops::ControlFlow};
+use std::{
+    cmp, iter,
+    ops::ControlFlow,
+    time::{Duration, UNIX_EPOCH},
+};
+use timeago::Formatter;
 
 #[derive(Copy, Clone)]
 enum Command {
@@ -343,7 +348,11 @@ impl ContainerField {
                 .unwrap_or(Span::from("N/A")),
             Self::Created => match &container.created {
                 None => Span::from("N/A"),
-                Some(when) => Span::from(format!("{when}")),
+                Some(when) => {
+                    let formatter = Formatter::new();
+                    let when = UNIX_EPOCH + Duration::from_secs(*when as u64);
+                    formatter.convert(when.elapsed().unwrap()).into()
+                }
             },
             Self::Status => container.status.as_deref().unwrap_or("N/A").into(),
             Self::Names => match &container.names {
