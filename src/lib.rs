@@ -85,18 +85,15 @@ impl App {
 
     fn main_loop(&mut self) -> Result<()> {
         while let Some(event) = self.receiver.blocking_recv() {
-            let mut messages_out = vec![];
-            match event {
-                Event::Input(Ok(event)) => {
-                    messages_out.extend(self.container_list.handle_input_event(event));
-                }
+            let messages_out = match event {
+                Event::Input(Ok(event)) => self.container_list.handle_input_event(event),
                 Event::FromDocker(Ok(message)) => {
-                    messages_out.extend(self.container_list.handle_docker_response(message));
+                    self.container_list.handle_docker_response(message)
                 }
                 Event::Input(Err(err)) | Event::FromDocker(Err(err)) => {
                     return Err(err);
                 }
-            }
+            };
             if let ControlFlow::Break(_) = self.handle_container_list_events(messages_out)? {
                 break;
             }
