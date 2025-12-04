@@ -10,7 +10,7 @@ pub enum MessageIn {
 
 #[derive(Debug)]
 pub enum MessageOut {
-    GetContainers(Result<Vec<Container>>),
+    GetContainers(Vec<Container>),
 }
 
 async fn fetch_containers(docker: &Docker) -> Result<Vec<Container>> {
@@ -25,15 +25,17 @@ async fn docker_event_main_inner<E>(
     docker: Docker,
     mut receiver: mpsc::UnboundedReceiver<MessageIn>,
     sender: mpsc::Sender<E>,
-    sender_processor: impl Fn(MessageOut) -> E,
+    sender_processor: impl Fn(Result<MessageOut>) -> E,
 ) {
     while let Some(message) = receiver.recv().await {
         match message {
             MessageIn::GetContainers => {
                 if sender
-                    .send(sender_processor(MessageOut::GetContainers(
-                        fetch_containers(&docker).await,
-                    )))
+                    .send(sender_processor(
+                        fetch_containers(&docker)
+                            .await
+                            .map(MessageOut::GetContainers),
+                    ))
                     .await
                     .is_err()
                 {
@@ -48,7 +50,7 @@ pub fn main<E: Send + 'static>(
     docker: Docker,
     receiver: mpsc::UnboundedReceiver<MessageIn>,
     sender: mpsc::Sender<E>,
-    sender_processor: impl Fn(MessageOut) -> E + Send + Sync + 'static,
+    sender_processor: impl Fn(Result<MessageOut>) -> E + Send + Sync + 'static,
 ) -> Result<()> {
     Builder::new_current_thread()
         .enable_all()

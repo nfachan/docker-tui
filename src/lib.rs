@@ -19,7 +19,7 @@ mod viewport;
 #[derive(Debug)]
 pub enum Event {
     Input(Result<input::Event>),
-    FromDocker(docker::MessageOut),
+    FromDocker(Result<docker::MessageOut>),
 }
 
 struct App {
@@ -90,11 +90,11 @@ impl App {
                 Event::Input(Ok(event)) => {
                     messages_out.extend(self.container_list.handle_input_event(event));
                 }
-                Event::Input(Err(err)) => {
-                    return Err(err);
+                Event::FromDocker(Ok(message)) => {
+                    messages_out.extend(self.container_list.handle_docker_response(message));
                 }
-                Event::FromDocker(message) => {
-                    messages_out.extend(self.container_list.handle_docker_response(message)?);
+                Event::Input(Err(err)) | Event::FromDocker(Err(err)) => {
+                    return Err(err);
                 }
             }
             if let ControlFlow::Break(_) = self.handle_container_list_events(messages_out)? {

@@ -3,7 +3,6 @@ use crate::{
     input_state_machine::{Builder, InputResult, InputStateMachine},
     viewport::Viewport,
 };
-use color_eyre::Result;
 use crossterm::event::{
     Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
 };
@@ -339,14 +338,11 @@ impl ContainerList {
         }
     }
 
-    pub fn handle_docker_response(
-        &mut self,
-        response: docker::MessageOut,
-    ) -> Result<Option<MessageOut>> {
+    pub fn handle_docker_response(&mut self, response: docker::MessageOut) -> Option<MessageOut> {
         let docker::MessageOut::GetContainers(containers) = response;
-        self.containers = containers?;
+        self.containers = containers;
         self.viewport.change_num_containers(self.containers.len());
-        Ok(Some(MessageOut::Render))
+        Some(MessageOut::Render)
     }
 }
 
