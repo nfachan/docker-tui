@@ -53,7 +53,7 @@ impl App {
         thread::spawn(move || timer::main(timer_receiver, sender_clone, Event::FromTimer));
 
         // Spawn input event thread.
-        thread::spawn(move || input::main(sender));
+        thread::spawn(move || input::main(sender, Event::Input));
 
         // Create the ContainerList.
         let (container_list, messages_out) = ContainerList::new();
