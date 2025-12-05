@@ -1,12 +1,23 @@
+use derive_more::From;
 use itertools::{Either, Itertools as _};
-use std::{collections::HashMap, iter::Extend, time::Duration};
+use std::{collections::HashMap, iter::Extend, ops::AddAssign, time::Duration};
 use tokio::{
     sync::mpsc,
     time::{self, Instant},
 };
 
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Eq, From, Hash, PartialEq)]
 pub struct Id(pub u64);
+
+impl<Rhs> AddAssign<Rhs> for Id
+where
+    Id: From<Rhs>,
+{
+    fn add_assign(&mut self, rhs: Rhs) {
+        let rhs = Id::from(rhs);
+        self.0 += rhs.0;
+    }
+}
 
 pub enum MessageIn {
     Start(Id, Duration),

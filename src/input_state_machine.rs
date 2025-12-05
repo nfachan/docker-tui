@@ -65,6 +65,10 @@ where
             }
         }
     }
+
+    pub fn reset(&mut self) {
+        self.current_state = 0;
+    }
 }
 
 #[derive(Debug)]

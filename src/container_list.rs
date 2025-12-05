@@ -54,6 +54,8 @@ enum Command {
 pub struct ContainerList {
     containers: Vec<Container>,
     viewport: Viewport,
+    next_timer_id: timer::Id,
+    input_timer: Option<timer::Id>,
     input_state_machine: InputStateMachine<(KeyCode, KeyModifiers), Command>,
     area: Rect,
     style: Style,
@@ -65,6 +67,8 @@ pub struct ContainerList {
 }
 
 impl ContainerList {
+    const MULTIKEY_INPUT_TIMEOUT: Duration = Duration::from_secs(3);
+
     pub fn new() -> (Self, Vec<MessageOut>) {
         let input_state_machine = Builder::default()
             .binding([(KeyCode::Char('q'), KeyModifiers::NONE)], Command::Quit)
@@ -183,6 +187,8 @@ impl ContainerList {
             Self {
                 containers: Vec::default(),
                 viewport: Viewport::default(),
+                next_timer_id: timer::Id::default(),
+                input_timer: None,
                 input_state_machine,
                 area: Rect::ZERO,
                 style: Style::default().light_blue(),
@@ -217,10 +223,10 @@ impl ContainerList {
             .style(self.style.patch(self.block_style))
     }
 
-    fn handle_command(&mut self, command: Command) -> Option<MessageOut> {
+    fn handle_command(&mut self, command: Command) -> Vec<MessageOut> {
         match command {
             Command::Quit => {
-                return Some(MessageOut::Exit);
+                return vec![MessageOut::Exit];
             }
             Command::MoveSelectionUpOneLine => {
                 self.viewport.move_selection_up_one_line();
@@ -260,11 +266,15 @@ impl ContainerList {
                 self.viewport.scroll_selection_to_bottom();
             }
         }
-        Some(MessageOut::Render)
+        vec![MessageOut::Render]
     }
 
-    fn handle_key_event(&mut self, event: KeyEvent) -> Option<MessageOut> {
+    fn handle_key_event(&mut self, event: KeyEvent) -> Vec<MessageOut> {
+        let mut messages_out = vec![];
         if event.kind == KeyEventKind::Press {
+            if let Some(id) = self.input_timer.take() {
+                messages_out.push(MessageOut::ToTimer(timer::MessageIn::Cancel(id)));
+            }
             match self
                 .input_state_machine
                 .input((event.code, event.modifiers))
@@ -272,16 +282,24 @@ impl ContainerList {
                 InputResult::Done(command) => {
                     return self.handle_command(command);
                 }
-                InputResult::NeedMore => {}
+                InputResult::NeedMore => {
+                    let input_timer = self.next_timer_id;
+                    self.next_timer_id += 1;
+                    self.input_timer = Some(input_timer);
+                    messages_out.push(MessageOut::ToTimer(timer::MessageIn::Start(
+                        input_timer,
+                        Self::MULTIKEY_INPUT_TIMEOUT,
+                    )));
+                }
                 InputResult::Invalid => {
                     Self::bell();
                 }
             }
         }
-        None
+        messages_out
     }
 
-    fn handle_mouse_event(&mut self, event: MouseEvent) -> Option<MessageOut> {
+    fn handle_mouse_event(&mut self, event: MouseEvent) -> Vec<MessageOut> {
         match event.kind {
             MouseEventKind::ScrollDown => {
                 self.viewport.scroll_down_n_lines(3);
@@ -298,13 +316,13 @@ impl ContainerList {
                 }
             }
             _ => {
-                return None;
+                return vec![];
             }
         }
-        Some(MessageOut::Render)
+        vec![MessageOut::Render]
     }
 
-    fn handle_resize(&mut self, area: Rect) -> Option<MessageOut> {
+    fn handle_resize(&mut self, area: Rect) -> Vec<MessageOut> {
         let block = self.block();
         let inner_area = block.inner(area);
         self.viewport
@@ -339,27 +357,37 @@ impl ContainerList {
             .collect()
         };
 
-        Some(MessageOut::Render)
+        vec![MessageOut::Render]
     }
 
-    pub fn handle_input_event(&mut self, event: Event) -> Option<MessageOut> {
+    pub fn handle_input_event(&mut self, event: Event) -> Vec<MessageOut> {
         match event {
             Event::Key(event) => self.handle_key_event(event),
             Event::Mouse(event) => self.handle_mouse_event(event),
             Event::Resize(columns, rows) => self.handle_resize(Rect::new(0, 0, columns, rows)),
-            Event::FocusGained | Event::FocusLost | Event::Paste(_) => None,
+            Event::FocusGained | Event::FocusLost | Event::Paste(_) => vec![],
         }
     }
 
-    pub fn handle_docker_response(&mut self, response: docker::MessageOut) -> Option<MessageOut> {
+    pub fn handle_docker_response(&mut self, response: docker::MessageOut) -> Vec<MessageOut> {
         let docker::MessageOut::GetContainers(containers) = response;
         self.containers = containers;
         self.viewport.change_num_containers(self.containers.len());
-        Some(MessageOut::Render)
+        vec![MessageOut::Render]
     }
 
-    pub fn handle_timer_event(&mut self, _event: timer::MessageOut) -> Option<MessageOut> {
-        todo!();
+    pub fn handle_timer_event(
+        &mut self,
+        timer::MessageOut::TimerExpired(id): timer::MessageOut,
+    ) -> Vec<MessageOut> {
+        if let Some(input_id) = &self.input_timer
+            && *input_id == id
+        {
+            Self::bell();
+            self.input_state_machine.reset();
+            self.input_timer = None;
+        }
+        vec![]
     }
 }
 
