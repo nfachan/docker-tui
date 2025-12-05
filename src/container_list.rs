@@ -441,6 +441,11 @@ impl Widget for &mut ContainerList {
         let list_area = block.inner(area);
         self.viewport
             .change_viewport_height(list_area.height.into());
+        let scrollbar_parameters = self.viewport.scrollbar();
+        let scrollbar_area = area.inner(Margin {
+            vertical: 1,
+            horizontal: 0,
+        });
 
         // We need at least one column of screen space for one container field, plus one column of
         // spacing in between. If we have fewer screen columns, we drop container fields.
@@ -501,17 +506,14 @@ impl Widget for &mut ContainerList {
         }
 
         // Possibly render a scrollbar.
-        if let Some(scrollbar_parameters) = self.viewport.scrollbar() {
+        if let Some(scrollbar_parameters) = scrollbar_parameters {
             Scrollbar::new(ScrollbarOrientation::VerticalRight)
                 .style(self.style.patch(self.block_style))
                 .begin_symbol(None)
                 .end_symbol(None)
                 .track_symbol(None)
                 .render(
-                    area.inner(Margin {
-                        vertical: 1,
-                        horizontal: 0,
-                    }),
+                    scrollbar_area,
                     buf,
                     &mut ScrollbarState::default()
                         .content_length(scrollbar_parameters.total_items)
