@@ -441,8 +441,6 @@ impl Widget for &mut ContainerList {
             .change_viewport_height(inner_area.height.into());
         self.area = area;
 
-        let inner_area = block.inner(area);
-
         // We need at least one column of screen space for one container field, plus one column of
         // spacing in between. If we have fewer screen columns, we drop container fields.
         let width = usize::from(inner_area.width);
