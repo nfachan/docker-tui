@@ -1,5 +1,5 @@
 use bollard::{Docker, container::ListContainersOptions};
-use color_eyre::eyre::{Error, Report, Result};
+use color_eyre::eyre::{Report, Result};
 use tokio::{runtime::Builder, sync::mpsc, task};
 
 pub use bollard::models::ContainerSummary as Container;
@@ -13,14 +13,6 @@ pub enum MessageOut {
     GetContainers(Vec<Container>),
 }
 
-async fn fetch_containers(docker: &Docker) -> Result<Vec<Container>> {
-    let options = Some(ListContainersOptions::<String> {
-        all: true,
-        ..Default::default()
-    });
-    docker.list_containers(options).await.map_err(Error::from)
-}
-
 async fn main_inner<E>(
     docker: Docker,
     mut receiver: mpsc::UnboundedReceiver<MessageIn>,
@@ -30,9 +22,14 @@ async fn main_inner<E>(
     while let Some(message) = receiver.recv().await {
         match message {
             MessageIn::GetContainers => {
-                let response = fetch_containers(&docker)
+                let response = docker
+                    .list_containers(Some(ListContainersOptions::<String> {
+                        all: true,
+                        ..Default::default()
+                    }))
                     .await
-                    .map(MessageOut::GetContainers);
+                    .map(MessageOut::GetContainers)
+                    .map_err(Report::from);
                 if sender.send(sender_processor(response)).await.is_err() {
                     break;
                 }
