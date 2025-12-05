@@ -2,7 +2,7 @@ use crate::{
     docker::{self, Container},
     input_state_machine::{Builder, InputResult, InputStateMachine},
     timer,
-    viewport::Viewport,
+    viewport::{ScrollbarParameters, Viewport},
 };
 use crossterm::event::{
     Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
@@ -33,7 +33,7 @@ pub enum MessageOut {
     ToTimer(timer::MessageIn),
 }
 
-#[derive(Copy, Clone)]
+#[derive(Clone, Copy)]
 enum Command {
     Quit,
     MoveSelectionUpOneLine,
@@ -49,6 +49,24 @@ enum Command {
     ScrollSelectionToTop,
     ScrollSelectionToMiddle,
     ScrollSelectionToBottom,
+    ToggleScrollbar,
+}
+
+#[derive(Clone, Copy)]
+enum HaveScrollbar {
+    IfNecesssary,
+    Never,
+    Always,
+}
+
+impl HaveScrollbar {
+    fn next(self) -> Self {
+        match self {
+            Self::IfNecesssary => Self::Never,
+            Self::Never => Self::Always,
+            Self::Always => Self::IfNecesssary,
+        }
+    }
 }
 
 pub struct ContainerList {
@@ -64,6 +82,7 @@ pub struct ContainerList {
     line_style: Style,
     selected_line_style: Style,
     fields: Vec<ContainerField>,
+    have_scrollbar: HaveScrollbar,
 }
 
 impl ContainerList {
@@ -183,6 +202,11 @@ impl ContainerList {
                 Command::ScrollSelectionToBottom,
             )
             .unwrap()
+            .binding(
+                [(KeyCode::Char('S'), KeyModifiers::SHIFT)],
+                Command::ToggleScrollbar,
+            )
+            .unwrap()
             .build();
 
         let mut next_timer_id = timer::Id::default();
@@ -210,6 +234,7 @@ impl ContainerList {
                     ContainerField::Status,
                     ContainerField::Names,
                 ],
+                have_scrollbar: HaveScrollbar::IfNecesssary,
             },
             vec![
                 MessageOut::ToDocker(docker::MessageIn::GetContainers),
@@ -274,6 +299,9 @@ impl ContainerList {
             }
             Command::ScrollSelectionToBottom => {
                 self.viewport.scroll_selection_to_bottom();
+            }
+            Command::ToggleScrollbar => {
+                self.have_scrollbar = self.have_scrollbar.next();
             }
         }
         vec![MessageOut::Render]
@@ -442,7 +470,14 @@ impl Widget for &mut ContainerList {
         self.click_map = Some(list_area);
         self.viewport
             .change_viewport_height(list_area.height.into());
-        let scrollbar_parameters = self.viewport.scrollbar();
+        let scrollbar_parameters = match self.have_scrollbar {
+            HaveScrollbar::Never => None,
+            HaveScrollbar::IfNecesssary => self.viewport.scrollbar(),
+            HaveScrollbar::Always => self.viewport.scrollbar().or(Some(ScrollbarParameters {
+                total_items: 1,
+                top_item: 1,
+            })),
+        };
         let scrollbar_area = area.inner(Margin {
             vertical: 1,
             horizontal: 0,
