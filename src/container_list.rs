@@ -58,7 +58,7 @@ pub struct ContainerList {
     refresh_timer: timer::Id,
     input_timer: Option<timer::Id>,
     input_state_machine: InputStateMachine<(KeyCode, KeyModifiers), Command>,
-    area: Rect,
+    click_map: Option<Rect>,
     style: Style,
     block_style: Style,
     line_style: Style,
@@ -197,7 +197,7 @@ impl ContainerList {
                 refresh_timer,
                 input_timer: None,
                 input_state_machine,
-                area: Rect::ZERO,
+                click_map: None,
                 style: Style::default().light_blue(),
                 block_style: Style::default().red(),
                 line_style: Style::default(),
@@ -319,10 +319,11 @@ impl ContainerList {
             }
             MouseEventKind::Down(MouseButton::Left) => {
                 let position = Position::new(event.column, event.row);
-                let inner_area = self.block().inner(self.area);
-                if inner_area.contains(position) {
+                if let Some(area) = &self.click_map
+                    && area.contains(position)
+                {
                     self.viewport
-                        .handle_click(usize::from(position.y - inner_area.top()));
+                        .handle_click(usize::from(position.y - area.top()));
                 }
             }
             _ => {
@@ -427,18 +428,18 @@ struct FieldLayout {
 
 impl Widget for &mut ContainerList {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        self.area = area;
-
         if self.containers.is_empty() {
             // Handle special case of no containers.
             Paragraph::new("no containers")
                 .block(self.block())
                 .render(area, buf);
+            self.click_map = None;
             return;
         }
 
         let block = self.block();
         let list_area = block.inner(area);
+        self.click_map = Some(list_area);
         self.viewport
             .change_viewport_height(list_area.height.into());
         let scrollbar_parameters = self.viewport.scrollbar();
