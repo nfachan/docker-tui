@@ -56,7 +56,7 @@ impl App {
         runtime.spawn(timer::main(timer_receiver, sender.clone(), Event::Timer));
 
         // Spawn input event thread.
-        thread::spawn(move || input::main(sender, Event::Input));
+        runtime.spawn(input::main(sender, Event::Input));
 
         // Spawn a thread to wait on the runtime.
         thread::spawn(move || runtime.block_on(future::pending::<()>()));
