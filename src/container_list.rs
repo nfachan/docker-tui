@@ -436,30 +436,32 @@ impl Widget for &mut ContainerList {
         }
 
         let block = self.block();
-        let inner_area = block.inner(area);
+        let list_area = block.inner(area);
         self.viewport
-            .change_viewport_height(inner_area.height.into());
+            .change_viewport_height(list_area.height.into());
         self.area = area;
 
         // We need at least one column of screen space for one container field, plus one column of
         // spacing in between. If we have fewer screen columns, we drop container fields.
-        let width = usize::from(inner_area.width);
-        let num_fields = cmp::min(self.fields.len(), width.div_ceil(2));
+        let list_width = usize::from(list_area.width);
+        let num_fields = cmp::min(self.fields.len(), list_width.div_ceil(2));
         let field_layouts = if num_fields == 0 {
             vec![]
         } else {
             Layout::horizontal(Itertools::intersperse(
                 iter::repeat_n(
                     Constraint::Ratio(
-                        ((width - num_fields + 1) / num_fields).try_into().unwrap(),
-                        width.try_into().unwrap(),
+                        ((list_width - num_fields + 1) / num_fields)
+                            .try_into()
+                            .unwrap(),
+                        list_width.try_into().unwrap(),
                     ),
                     num_fields,
                 ),
                 Constraint::Length(1),
             ))
             .flex(Flex::Legacy)
-            .split(inner_area)
+            .split(list_area)
             .iter()
             .step_by(2)
             .map(|area| FieldLayout {
@@ -477,11 +479,11 @@ impl Widget for &mut ContainerList {
             self.viewport.select_for_render().enumerate()
         {
             let row_area = Rect::new(
-                inner_area.x,
-                inner_area
+                list_area.x,
+                list_area
                     .y
                     .saturating_add(row_index.try_into().unwrap_or(u16::MAX)),
-                inner_area.width,
+                list_area.width,
                 1,
             );
             let mut row_style = self.style.patch(self.line_style);
