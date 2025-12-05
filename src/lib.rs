@@ -4,12 +4,11 @@ use container_list::ContainerList;
 use crossterm::{cursor, event, execute, terminal};
 use ratatui::{Terminal, backend::CrosstermBackend};
 use std::{
-    future,
     io::{self, Stdout},
     ops::ControlFlow,
-    panic, thread,
+    panic,
 };
-use tokio::{runtime::Runtime, sync::mpsc};
+use tokio::{sync::mpsc, task};
 
 mod container_list;
 mod docker;
@@ -36,7 +35,6 @@ struct App {
 impl App {
     fn new(
         docker: Docker,
-        runtime: Runtime,
         terminal: Terminal<CrosstermBackend<Stdout>>,
     ) -> (Self, Vec<container_list::MessageOut>) {
         const CHANNEL_SLOTS: usize = 10;
@@ -45,7 +43,7 @@ impl App {
         let (sender, receiver) = mpsc::channel(CHANNEL_SLOTS);
 
         // Spawn the docker thread.
-        runtime.spawn(docker::main(
+        task::spawn(docker::main(
             docker,
             docker_receiver,
             sender.clone(),
@@ -53,13 +51,10 @@ impl App {
         ));
 
         // Spawn the timer thread.
-        runtime.spawn(timer::main(timer_receiver, sender.clone(), Event::Timer));
+        task::spawn(timer::main(timer_receiver, sender.clone(), Event::Timer));
 
         // Spawn input event thread.
-        runtime.spawn(input::main(sender, Event::Input));
-
-        // Spawn a thread to wait on the runtime.
-        thread::spawn(move || runtime.block_on(future::pending::<()>()));
+        task::spawn(input::main(sender, Event::Input));
 
         // Create the ContainerList.
         let (container_list, messages_out) = ContainerList::new();
@@ -99,8 +94,8 @@ impl App {
         Ok(ControlFlow::Continue(()))
     }
 
-    fn main_loop(&mut self) -> Result<()> {
-        while let Some(event) = self.receiver.blocking_recv() {
+    async fn main_loop(&mut self) -> Result<()> {
+        while let Some(event) = self.receiver.recv().await {
             let messages_out = match event {
                 Event::Input(Ok(event)) => self.container_list.handle_input_event(event),
                 Event::Docker(Ok(message)) => self.container_list.handle_docker_response(message),
@@ -125,7 +120,7 @@ fn set_panic_hook() {
     }));
 }
 
-fn main_start_up(docker: Docker) -> Result<()> {
+async fn main_start_up(docker: Docker) -> Result<()> {
     let mut stdout = io::stdout();
 
     terminal::enable_raw_mode()?;
@@ -133,14 +128,10 @@ fn main_start_up(docker: Docker) -> Result<()> {
     execute!(stdout, cursor::Hide)?;
     execute!(stdout, event::EnableMouseCapture)?;
 
-    let runtime = Runtime::new()?;
-    let (mut app, initial_messages) = App::new(
-        docker,
-        runtime,
-        Terminal::new(CrosstermBackend::new(stdout))?,
-    );
+    let (mut app, initial_messages) =
+        App::new(docker, Terminal::new(CrosstermBackend::new(stdout))?);
     if let ControlFlow::Continue(_) = app.handle_container_list_events(initial_messages)? {
-        app.main_loop()?;
+        app.main_loop().await?;
     }
 
     Ok(())
@@ -159,9 +150,9 @@ fn main_clean_up() -> Result<()> {
     .map_err(Report::from)
 }
 
-pub fn main(docker: Docker) -> Result<()> {
+pub async fn main(docker: Docker) -> Result<()> {
     set_panic_hook();
-    [main_start_up(docker), main_clean_up()]
+    [main_start_up(docker).await, main_clean_up()]
         .into_iter()
         .collect()
 }

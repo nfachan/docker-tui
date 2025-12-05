@@ -29,7 +29,8 @@ struct Args {
     socket: Option<String>,
 }
 
-fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
     color_eyre::install()?;
     let args = Args::parse();
     let docker = args
@@ -44,6 +45,6 @@ fn main() -> Result<()> {
             Run `{} --help` for more information.",
             env::args().next().unwrap_or("docker-tui".to_string())
         ))?;
-    docker_tui::main(docker)?;
+    docker_tui::main(docker).await?;
     Ok(())
 }

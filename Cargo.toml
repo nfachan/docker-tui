@@ -13,7 +13,7 @@ futures = "0.3"
 itertools = "0.14"
 ratatui = "0.29"
 timeago = "0.5"
-tokio = { version = "1", features = ["rt-multi-thread"] }
+tokio = { version = "1", features = ["macros", "rt", "rt-multi-thread"] }
 
 [dev-dependencies]
 rstest = "0.26"
