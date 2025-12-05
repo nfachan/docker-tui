@@ -19,7 +19,9 @@ use ratatui::{
     },
 };
 use std::{
-    cmp, iter,
+    cmp,
+    io::{self, Write as _},
+    iter,
     time::{Duration, UNIX_EPOCH},
 };
 use timeago::Formatter;
@@ -204,6 +206,11 @@ impl ContainerList {
         )
     }
 
+    fn bell() {
+        print!("\x07");
+        let _ = io::stdout().flush();
+    }
+
     fn block(&self) -> Block<'static> {
         Block::bordered()
             .title("Containers")
@@ -267,7 +274,7 @@ impl ContainerList {
                 }
                 InputResult::NeedMore => {}
                 InputResult::Invalid => {
-                    print!("\x07"); // ASCII BEL to STDOUT
+                    Self::bell();
                 }
             }
         }
