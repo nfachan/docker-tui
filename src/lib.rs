@@ -33,16 +33,26 @@ struct App {
 }
 
 impl App {
+    const CHANNEL_SLOTS: usize = 10;
+
     fn new(
         docker: Docker,
         terminal: Terminal<CrosstermBackend<Stdout>>,
     ) -> (Self, Vec<container_list::MessageOut>) {
-        const CHANNEL_SLOTS: usize = 10;
-        let (docker_sender, docker_receiver) = mpsc::unbounded_channel();
-        let (timer_sender, timer_receiver) = mpsc::unbounded_channel();
-        let (sender, receiver) = mpsc::channel(CHANNEL_SLOTS);
+        // Create the main channel. The general scheme is that channel the main task reads off of
+        // is bounded, but the channels the main task writes to are unbounded. We don't have
+        // bounded channels in both directions so we don't have to worry about deadlock.
+        //
+        // On the other hand, with unbounded channels, we do have to worry about them growing
+        // unboundedly. We're going to hand-wave away that concern for now as it seems unlikely
+        // that user-generated events could create enough input events to cause problems. In the
+        // future, we may replace the unbounded channels with application-specific data structures
+        // that don't allow arbitrary queueing. Another option is to implement the timer
+        // functionality directly on this task.
+        let (sender, receiver) = mpsc::channel(Self::CHANNEL_SLOTS);
 
         // Spawn the docker thread.
+        let (docker_sender, docker_receiver) = mpsc::unbounded_channel();
         task::spawn(docker::main(
             docker,
             docker_receiver,
@@ -51,6 +61,7 @@ impl App {
         ));
 
         // Spawn the timer thread.
+        let (timer_sender, timer_receiver) = mpsc::unbounded_channel();
         task::spawn(timer::main(timer_receiver, sender.clone(), Event::Timer));
 
         // Spawn input event thread.
