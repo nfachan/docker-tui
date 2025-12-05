@@ -1,6 +1,6 @@
 use bollard::{Docker, container::ListContainersOptions};
 use color_eyre::eyre::{Report, Result};
-use tokio::{runtime::Builder, sync::mpsc, task};
+use tokio::sync::mpsc;
 
 pub use bollard::models::ContainerSummary as Container;
 
@@ -13,7 +13,7 @@ pub enum MessageOut {
     GetContainers(Vec<Container>),
 }
 
-async fn main_inner<E>(
+pub async fn main<E>(
     docker: Docker,
     mut receiver: mpsc::UnboundedReceiver<MessageIn>,
     sender: mpsc::Sender<E>,
@@ -36,19 +36,4 @@ async fn main_inner<E>(
             }
         }
     }
-}
-
-pub fn main<E: Send + 'static>(
-    docker: Docker,
-    receiver: mpsc::UnboundedReceiver<MessageIn>,
-    sender: mpsc::Sender<E>,
-    sender_processor: impl Fn(Result<MessageOut>) -> E + Send + Sync + 'static,
-) -> Result<()> {
-    Builder::new_current_thread()
-        .enable_all()
-        .build()?
-        .block_on(async move {
-            task::spawn(main_inner(docker, receiver, sender, sender_processor)).await
-        })
-        .map_err(Report::from)
 }

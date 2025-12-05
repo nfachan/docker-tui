@@ -1,10 +1,7 @@
-use color_eyre::{Report, Result};
 use itertools::{Either, Itertools as _};
 use std::{collections::HashMap, iter::Extend, time::Duration};
 use tokio::{
-    runtime::Builder,
     sync::mpsc,
-    task,
     time::{self, Instant},
 };
 
@@ -38,7 +35,7 @@ impl<T: Ord> Extend<T> for Min<T> {
     }
 }
 
-async fn main_inner<E>(
+pub async fn main<E>(
     mut receiver: mpsc::UnboundedReceiver<MessageIn>,
     sender: mpsc::Sender<E>,
     sender_processor: impl Fn(MessageOut) -> E,
@@ -82,16 +79,4 @@ async fn main_inner<E>(
             }
         }
     }
-}
-
-pub fn main<E: Send + 'static>(
-    receiver: mpsc::UnboundedReceiver<MessageIn>,
-    sender: mpsc::Sender<E>,
-    sender_processor: impl Fn(MessageOut) -> E + Send + Sync + 'static,
-) -> Result<()> {
-    Builder::new_current_thread()
-        .enable_all()
-        .build()?
-        .block_on(async move { task::spawn(main_inner(receiver, sender, sender_processor)).await })
-        .map_err(Report::from)
 }

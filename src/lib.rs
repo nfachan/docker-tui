@@ -4,11 +4,12 @@ use container_list::ContainerList;
 use crossterm::{cursor, event, execute, terminal};
 use ratatui::{Terminal, backend::CrosstermBackend};
 use std::{
+    future,
     io::{self, Stdout},
     ops::ControlFlow,
     panic, thread,
 };
-use tokio::sync::mpsc;
+use tokio::{runtime::Runtime, sync::mpsc};
 
 mod container_list;
 mod docker;
@@ -35,6 +36,7 @@ struct App {
 impl App {
     fn new(
         docker: Docker,
+        runtime: Runtime,
         terminal: Terminal<CrosstermBackend<Stdout>>,
     ) -> (Self, Vec<container_list::MessageOut>) {
         const CHANNEL_SLOTS: usize = 10;
@@ -43,15 +45,21 @@ impl App {
         let (sender, receiver) = mpsc::channel(CHANNEL_SLOTS);
 
         // Spawn the docker thread.
-        let sender_clone = sender.clone();
-        thread::spawn(move || docker::main(docker, docker_receiver, sender_clone, Event::Docker));
+        runtime.spawn(docker::main(
+            docker,
+            docker_receiver,
+            sender.clone(),
+            Event::Docker,
+        ));
 
         // Spawn the timer thread.
-        let sender_clone = sender.clone();
-        thread::spawn(move || timer::main(timer_receiver, sender_clone, Event::Timer));
+        runtime.spawn(timer::main(timer_receiver, sender.clone(), Event::Timer));
 
         // Spawn input event thread.
         thread::spawn(move || input::main(sender, Event::Input));
+
+        // Spawn a thread to wait on the runtime.
+        thread::spawn(move || runtime.block_on(future::pending::<()>()));
 
         // Create the ContainerList.
         let (container_list, messages_out) = ContainerList::new();
@@ -125,8 +133,12 @@ fn main_start_up(docker: Docker) -> Result<()> {
     execute!(stdout, cursor::Hide)?;
     execute!(stdout, event::EnableMouseCapture)?;
 
-    let (mut app, initial_messages) =
-        App::new(docker, Terminal::new(CrosstermBackend::new(stdout))?);
+    let runtime = Runtime::new()?;
+    let (mut app, initial_messages) = App::new(
+        docker,
+        runtime,
+        Terminal::new(CrosstermBackend::new(stdout))?,
+    );
     if let ControlFlow::Continue(_) = app.handle_container_list_events(initial_messages)? {
         app.main_loop()?;
     }
