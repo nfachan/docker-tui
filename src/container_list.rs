@@ -55,6 +55,7 @@ pub struct ContainerList {
     containers: Vec<Container>,
     viewport: Viewport,
     next_timer_id: timer::Id,
+    refresh_timer: timer::Id,
     input_timer: Option<timer::Id>,
     input_state_machine: InputStateMachine<(KeyCode, KeyModifiers), Command>,
     area: Rect,
@@ -68,6 +69,7 @@ pub struct ContainerList {
 
 impl ContainerList {
     const MULTIKEY_INPUT_TIMEOUT: Duration = Duration::from_secs(3);
+    const REFRESH_INTERVAL: Duration = Duration::from_secs(10);
 
     pub fn new() -> (Self, Vec<MessageOut>) {
         let input_state_machine = Builder::default()
@@ -183,11 +185,17 @@ impl ContainerList {
             )
             .unwrap()
             .build();
+
+        let mut next_timer_id = timer::Id::default();
+        let refresh_timer = next_timer_id;
+        next_timer_id += 1;
+
         (
             Self {
                 containers: Vec::default(),
                 viewport: Viewport::default(),
-                next_timer_id: timer::Id::default(),
+                next_timer_id,
+                refresh_timer,
                 input_timer: None,
                 input_state_machine,
                 area: Rect::ZERO,
@@ -207,6 +215,10 @@ impl ContainerList {
             },
             vec![
                 MessageOut::ToDocker(docker::MessageIn::GetContainers),
+                MessageOut::ToTimer(timer::MessageIn::Start(
+                    refresh_timer,
+                    Self::REFRESH_INTERVAL,
+                )),
                 MessageOut::Render,
             ],
         )
@@ -386,8 +398,20 @@ impl ContainerList {
             Self::bell();
             self.input_state_machine.reset();
             self.input_timer = None;
+            vec![]
+        } else if self.refresh_timer == id {
+            self.refresh_timer = self.next_timer_id;
+            self.next_timer_id += 1;
+            vec![
+                MessageOut::ToDocker(docker::MessageIn::GetContainers),
+                MessageOut::ToTimer(timer::MessageIn::Start(
+                    self.refresh_timer,
+                    Self::REFRESH_INTERVAL,
+                )),
+            ]
+        } else {
+            vec![]
         }
-        vec![]
     }
 }
 
