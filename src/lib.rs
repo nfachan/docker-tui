@@ -20,8 +20,8 @@ mod viewport;
 #[derive(Debug)]
 pub enum Event {
     Input(Result<input::Event>),
-    FromDocker(Result<docker::MessageOut>),
-    FromTimer(timer::MessageOut),
+    Docker(Result<docker::MessageOut>),
+    Timer(timer::MessageOut),
 }
 
 struct App {
@@ -44,13 +44,11 @@ impl App {
 
         // Spawn the docker thread.
         let sender_clone = sender.clone();
-        thread::spawn(move || {
-            docker::main(docker, docker_receiver, sender_clone, Event::FromDocker)
-        });
+        thread::spawn(move || docker::main(docker, docker_receiver, sender_clone, Event::Docker));
 
         // Spawn the timer thread.
         let sender_clone = sender.clone();
-        thread::spawn(move || timer::main(timer_receiver, sender_clone, Event::FromTimer));
+        thread::spawn(move || timer::main(timer_receiver, sender_clone, Event::Timer));
 
         // Spawn input event thread.
         thread::spawn(move || input::main(sender, Event::Input));
@@ -97,11 +95,9 @@ impl App {
         while let Some(event) = self.receiver.blocking_recv() {
             let messages_out = match event {
                 Event::Input(Ok(event)) => self.container_list.handle_input_event(event),
-                Event::FromDocker(Ok(message)) => {
-                    self.container_list.handle_docker_response(message)
-                }
-                Event::FromTimer(event) => self.container_list.handle_timer_event(event),
-                Event::Input(Err(err)) | Event::FromDocker(Err(err)) => {
+                Event::Docker(Ok(message)) => self.container_list.handle_docker_response(message),
+                Event::Timer(event) => self.container_list.handle_timer_event(event),
+                Event::Input(Err(err)) | Event::Docker(Err(err)) => {
                     return Err(err);
                 }
             };
