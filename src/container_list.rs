@@ -64,7 +64,6 @@ pub struct ContainerList {
     line_style: Style,
     selected_line_style: Style,
     fields: Vec<ContainerField>,
-    field_layouts: Vec<FieldLayout>,
 }
 
 impl ContainerList {
@@ -211,7 +210,6 @@ impl ContainerList {
                     ContainerField::Status,
                     ContainerField::Names,
                 ],
-                field_layouts: Vec::default(),
             },
             vec![
                 MessageOut::ToDocker(docker::MessageIn::GetContainers),
@@ -334,49 +332,11 @@ impl ContainerList {
         vec![MessageOut::Render]
     }
 
-    fn handle_resize(&mut self, area: Rect) -> Vec<MessageOut> {
-        let block = self.block();
-        let inner_area = block.inner(area);
-        self.viewport
-            .change_viewport_height(inner_area.height.into());
-        self.area = area;
-
-        // We need at least one column of screen space for one container field, plus one column of
-        // spacing in between. If we have fewer screen columns, we drop container fields.
-        let width = usize::from(inner_area.width);
-        let num_fields = cmp::min(self.fields.len(), width.div_ceil(2));
-        self.field_layouts = if num_fields == 0 {
-            vec![]
-        } else {
-            Layout::horizontal(Itertools::intersperse(
-                iter::repeat_n(
-                    Constraint::Ratio(
-                        ((width - num_fields + 1) / num_fields).try_into().unwrap(),
-                        width.try_into().unwrap(),
-                    ),
-                    num_fields,
-                ),
-                Constraint::Length(1),
-            ))
-            .flex(Flex::Legacy)
-            .split(inner_area)
-            .iter()
-            .step_by(2)
-            .map(|area| FieldLayout {
-                x: area.x,
-                width: area.width,
-            })
-            .collect()
-        };
-
-        vec![MessageOut::Render]
-    }
-
     pub fn handle_input_event(&mut self, event: Event) -> Vec<MessageOut> {
         match event {
             Event::Key(event) => self.handle_key_event(event),
             Event::Mouse(event) => self.handle_mouse_event(event),
-            Event::Resize(columns, rows) => self.handle_resize(Rect::new(0, 0, columns, rows)),
+            Event::Resize(_, _) => vec![MessageOut::Render],
             Event::FocusGained | Event::FocusLost | Event::Paste(_) => vec![],
         }
     }
@@ -467,12 +427,12 @@ struct FieldLayout {
 
 impl Widget for &mut ContainerList {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        // We may not always get a resize event before some other event that causes a redraw.
-        if area != self.area {
-            self.handle_resize(area);
-        }
-
         let block = self.block();
+        let inner_area = block.inner(area);
+        self.viewport
+            .change_viewport_height(inner_area.height.into());
+        self.area = area;
+
         if self.containers.is_empty() {
             // Handle special case of no containers.
             Paragraph::new("no containers")
@@ -480,6 +440,34 @@ impl Widget for &mut ContainerList {
                 .render(area, buf);
         } else {
             let inner_area = block.inner(area);
+
+            // We need at least one column of screen space for one container field, plus one column of
+            // spacing in between. If we have fewer screen columns, we drop container fields.
+            let width = usize::from(inner_area.width);
+            let num_fields = cmp::min(self.fields.len(), width.div_ceil(2));
+            let field_layouts = if num_fields == 0 {
+                vec![]
+            } else {
+                Layout::horizontal(Itertools::intersperse(
+                    iter::repeat_n(
+                        Constraint::Ratio(
+                            ((width - num_fields + 1) / num_fields).try_into().unwrap(),
+                            width.try_into().unwrap(),
+                        ),
+                        num_fields,
+                    ),
+                    Constraint::Length(1),
+                ))
+                .flex(Flex::Legacy)
+                .split(inner_area)
+                .iter()
+                .step_by(2)
+                .map(|area| FieldLayout {
+                    x: area.x,
+                    width: area.width,
+                })
+                .collect()
+            };
 
             // Render the block.
             block.render(area, buf);
@@ -501,7 +489,7 @@ impl Widget for &mut ContainerList {
                     row_style = row_style.patch(self.selected_line_style)
                 }
                 buf.set_style(row_area, row_style);
-                for (column, field) in self.field_layouts.iter().zip(self.fields.iter()) {
+                for (column, field) in field_layouts.iter().zip(self.fields.iter()) {
                     field.format(&self.containers[container_index]).render(
                         Rect::new(column.x, row_area.y, column.width, row_area.height),
                         buf,
