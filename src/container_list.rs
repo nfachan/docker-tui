@@ -28,6 +28,7 @@ pub enum MessageOut {
     Exit,
     Render,
     ToDocker(docker::MessageIn),
+    ToTimer(timer::MessageIn),
 }
 
 #[derive(Copy, Clone)]

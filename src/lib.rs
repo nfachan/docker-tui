@@ -26,6 +26,7 @@ pub enum Event {
 
 struct App {
     docker_sender: mpsc::UnboundedSender<docker::MessageIn>,
+    timer_sender: mpsc::UnboundedSender<timer::MessageIn>,
     receiver: mpsc::Receiver<Event>,
     container_list: ContainerList,
     terminal: Terminal<CrosstermBackend<Stdout>>,
@@ -38,7 +39,7 @@ impl App {
     ) -> (Self, Vec<container_list::MessageOut>) {
         const CHANNEL_SLOTS: usize = 10;
         let (docker_sender, docker_receiver) = mpsc::unbounded_channel();
-        let (_timer_sender, timer_receiver) = mpsc::unbounded_channel();
+        let (timer_sender, timer_receiver) = mpsc::unbounded_channel();
         let (sender, receiver) = mpsc::channel(CHANNEL_SLOTS);
 
         // Spawn the docker thread.
@@ -60,6 +61,7 @@ impl App {
         (
             Self {
                 docker_sender,
+                timer_sender,
                 receiver,
                 container_list,
                 terminal,
@@ -82,9 +84,10 @@ impl App {
                         frame.render_widget(&mut self.container_list, frame.area())
                     })?;
                 }
-                container_list::MessageOut::ToDocker(docker_message) => {
-                    self.docker_sender.send(docker_message)?
+                container_list::MessageOut::ToDocker(message) => {
+                    self.docker_sender.send(message)?
                 }
+                container_list::MessageOut::ToTimer(message) => self.timer_sender.send(message)?,
             }
         }
         Ok(ControlFlow::Continue(()))
