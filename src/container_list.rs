@@ -26,6 +26,7 @@ use timeago::Formatter;
 
 pub enum MessageOut {
     Exit,
+    Render,
     ToDocker(docker::MessageIn),
 }
 
@@ -247,7 +248,7 @@ impl ContainerList {
                 self.viewport.scroll_selection_to_bottom();
             }
         }
-        None
+        Some(MessageOut::Render)
     }
 
     pub fn handle_key_event(&mut self, event: KeyEvent) -> Option<MessageOut> {
@@ -288,7 +289,7 @@ impl ContainerList {
                 return None;
             }
         }
-        None
+        Some(MessageOut::Render)
     }
 
     pub fn handle_resize(&mut self, area: Rect) -> Option<MessageOut> {
@@ -326,7 +327,7 @@ impl ContainerList {
             .collect()
         };
 
-        None
+        Some(MessageOut::Render)
     }
 
     pub fn handle_docker_response(
@@ -336,7 +337,7 @@ impl ContainerList {
         let docker::MessageOut::GetContainers(containers) = response;
         self.containers = containers?;
         self.viewport.change_num_containers(self.containers.len());
-        Ok(None)
+        Ok(Some(MessageOut::Render))
     }
 }
 

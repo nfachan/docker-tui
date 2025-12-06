@@ -64,6 +64,11 @@ impl App {
                 container_list::MessageOut::Exit => {
                     return Ok(ControlFlow::Break(()));
                 }
+                container_list::MessageOut::Render => {
+                    self.terminal.draw(|frame| {
+                        frame.render_widget(&mut self.container_list, frame.area())
+                    })?;
+                }
                 container_list::MessageOut::ToDocker(docker_message) => {
                     self.docker_sender.send(docker_message)?
                 }
@@ -109,8 +114,6 @@ impl App {
             if let ControlFlow::Break(_) = self.handle_container_list_events(messages_out)? {
                 return Ok(());
             }
-            self.terminal
-                .draw(|frame| frame.render_widget(&mut self.container_list, frame.area()))?;
         }
         Ok(())
     }
