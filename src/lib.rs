@@ -57,12 +57,11 @@ fn main_loop(docker: Docker, mut terminal: Terminal<impl Backend>) -> Result<()>
             )) => {
                 continue;
             }
-            Event::FromDocker(docker::MessageOut::GetContainers(Ok(containers))) => {
-                container_list.handle_containers(containers);
-            }
-            Event::Input(Err(err))
-            | Event::FromDocker(docker::MessageOut::GetContainers(Err(err))) => {
+            Event::Input(Err(err)) => {
                 return Err(err);
+            }
+            Event::FromDocker(message) => {
+                container_list.handle_docker_response(message)?;
             }
         }
         terminal.draw(|frame| frame.render_widget(&mut container_list, frame.area()))?;
