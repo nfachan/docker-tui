@@ -49,6 +49,7 @@ enum Command {
     ScrollSelectionToTop,
     ScrollSelectionToMiddle,
     ScrollSelectionToBottom,
+    ToggleBlock,
     ToggleScrollbar,
 }
 
@@ -82,6 +83,7 @@ pub struct ContainerList {
     line_style: Style,
     selected_line_style: Style,
     fields: Vec<ContainerField>,
+    have_block: bool,
     have_scrollbar: HaveScrollbar,
 }
 
@@ -203,6 +205,11 @@ impl ContainerList {
             )
             .unwrap()
             .binding(
+                [(KeyCode::Char('b'), KeyModifiers::NONE)],
+                Command::ToggleBlock,
+            )
+            .unwrap()
+            .binding(
                 [(KeyCode::Char('S'), KeyModifiers::SHIFT)],
                 Command::ToggleScrollbar,
             )
@@ -234,6 +241,7 @@ impl ContainerList {
                     ContainerField::Status,
                     ContainerField::Names,
                 ],
+                have_block: true,
                 have_scrollbar: HaveScrollbar::IfNecesssary,
             },
             vec![
@@ -293,6 +301,9 @@ impl ContainerList {
             }
             Command::ScrollSelectionToBottom => {
                 self.viewport.scroll_selection_to_bottom();
+            }
+            Command::ToggleBlock => {
+                self.have_block = !self.have_block;
             }
             Command::ToggleScrollbar => {
                 self.have_scrollbar = self.have_scrollbar.next();
@@ -456,18 +467,22 @@ impl Widget for &mut ContainerList {
 
         if self.containers.is_empty() {
             // Handle special case of no containers.
-            Paragraph::new("no containers")
-                .block(block)
-                .render(area, buf);
+            let mut paragraph = Paragraph::new("no containers");
+            if self.have_block {
+                paragraph = paragraph.block(block);
+            }
+            paragraph.render(area, buf);
             self.click_map = None;
             return;
         }
 
-        let list_area = block.inner(area);
-        self.click_map = Some(list_area);
-        self.viewport
-            .change_viewport_height(list_area.height.into());
-        let scrollbar_parameters = match self.have_scrollbar {
+        let list_height = if self.have_block {
+            block.inner(area).height
+        } else {
+            area.height
+        };
+        self.viewport.change_viewport_height(list_height.into());
+        let mut scrollbar_parameters = match self.have_scrollbar {
             HaveScrollbar::Never => None,
             HaveScrollbar::IfNecesssary => self.viewport.scrollbar(),
             HaveScrollbar::Always => self.viewport.scrollbar().or(Some(ScrollbarParameters {
@@ -475,10 +490,34 @@ impl Widget for &mut ContainerList {
                 top_item: 1,
             })),
         };
-        let scrollbar_area = area.inner(Margin {
-            vertical: 1,
-            horizontal: 0,
-        });
+        let list_area;
+        let scrollbar_area;
+        if self.have_block {
+            list_area = block.inner(area);
+            scrollbar_area = area.inner(Margin {
+                vertical: 1,
+                horizontal: 0,
+            });
+        } else if scrollbar_parameters.is_some() && area.width >= 2 {
+            list_area = Rect {
+                x: area.x,
+                y: area.y,
+                width: area.width - 1,
+                height: area.height,
+            };
+            scrollbar_area = Rect {
+                x: area.x.saturating_add(area.width - 1),
+                y: area.y,
+                width: 1,
+                height: area.height,
+            };
+        } else {
+            scrollbar_parameters = None;
+            list_area = area;
+            scrollbar_area = Rect::ZERO;
+        }
+        self.click_map = Some(list_area);
+        assert_eq!(list_height, list_area.height);
 
         // We need at least one column of screen space for one container field, plus one column of
         // spacing in between. If we have fewer screen columns, we drop container fields.
@@ -510,8 +549,10 @@ impl Widget for &mut ContainerList {
             .collect()
         };
 
-        // Render the block.
-        block.render(area, buf);
+        // Possibly render the block.
+        if self.have_block {
+            block.render(area, buf);
+        }
 
         // Render the items.
         for (row_index, (container_index, selected)) in
