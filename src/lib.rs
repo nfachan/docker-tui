@@ -2,7 +2,6 @@ use bollard::Docker;
 use color_eyre::eyre::{Report, Result};
 use container_list::ContainerList;
 use crossterm::{cursor, event, execute, terminal};
-use docker::Container;
 use ratatui::{
     Terminal,
     backend::{Backend, CrosstermBackend},
@@ -20,19 +19,24 @@ mod viewport;
 #[derive(Debug)]
 pub enum Event {
     Input(Result<input::Event>),
-    Docker(Result<Vec<Container>>),
+    Docker(docker::MessageOut),
 }
 
 fn main_loop(docker: Docker, mut terminal: Terminal<impl Backend>) -> Result<()> {
     const CHANNEL_SLOTS: usize = 10;
+    let (docker_sender, docker_receiver) = mpsc::unbounded_channel();
     let (sender, mut receiver) = mpsc::channel(CHANNEL_SLOTS);
 
+    // Spawn the docker thread.
     let sender_clone = sender.clone();
-    thread::spawn(move || docker::main(docker, sender_clone));
+    thread::spawn(move || docker::main(docker, docker_receiver, sender_clone, Event::Docker));
 
     // Spawn input event thread.
     thread::spawn(move || input::main(sender));
     let mut container_list = ContainerList::default();
+
+    // Send an initial message to the docker thread.
+    docker_sender.send(docker::MessageIn::GetContainers)?;
 
     terminal.draw(|frame| frame.render_widget(&mut container_list, frame.area()))?;
     while let Some(event) = receiver.blocking_recv() {
@@ -53,10 +57,10 @@ fn main_loop(docker: Docker, mut terminal: Terminal<impl Backend>) -> Result<()>
             )) => {
                 continue;
             }
-            Event::Docker(Ok(containers)) => {
+            Event::Docker(docker::MessageOut::GetContainers(Ok(containers))) => {
                 container_list.handle_containers(containers);
             }
-            Event::Input(Err(err)) | Event::Docker(Err(err)) => {
+            Event::Input(Err(err)) | Event::Docker(docker::MessageOut::GetContainers(Err(err))) => {
                 return Err(err);
             }
         }
