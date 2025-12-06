@@ -369,12 +369,12 @@ impl Widget for &mut ContainerList {
                     row_style = row_style.patch(self.selected_line_style)
                 }
                 buf.set_style(row_area, row_style);
-                for (column_index, field) in fields.iter().enumerate() {
+                for (column, field) in field_layouts.iter().zip(fields) {
                     field.format(&self.containers[container_index]).render(
                         Rect::new(
-                            row_area.x + field_layouts[column_index].x,
+                            row_area.x + column.x,
                             row_area.y,
-                            field_layouts[column_index].width,
+                            column.width,
                             row_area.height,
                         ),
                         buf,
