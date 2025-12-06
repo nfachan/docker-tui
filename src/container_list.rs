@@ -308,15 +308,6 @@ impl ContainerField {
     }
 }
 
-fn format_container<'a>(container: &'a Container) -> impl Iterator<Item = Span<'a>> {
-    [
-        ContainerField::Id.format(container),
-        ContainerField::Names.format(container),
-        ContainerField::Status.format(container),
-    ]
-    .into_iter()
-}
-
 impl Widget for &mut ContainerList {
     fn render(self, area: Rect, buf: &mut Buffer) {
         // We may not always get a resize event before some other event that causes a redraw.
@@ -337,6 +328,11 @@ impl Widget for &mut ContainerList {
             block.render(area, buf);
 
             let offset_widths = [(0u16, 8u16), (9u16, 39u16), (40u16, 30u16)];
+            let fields = [
+                ContainerField::Id,
+                ContainerField::Names,
+                ContainerField::Status,
+            ];
 
             // Render the items.
             for (row_index, (container_index, selected)) in
@@ -355,10 +351,8 @@ impl Widget for &mut ContainerList {
                     row_style = row_style.patch(self.selected_line_style)
                 }
                 buf.set_style(row_area, row_style);
-                let row = format_container(&self.containers[container_index]);
-                for (column_index, cell) in row.enumerate() {
-                    Widget::render(
-                        cell,
+                for (column_index, field) in fields.iter().enumerate() {
+                    field.format(&self.containers[container_index]).render(
                         Rect::new(
                             row_area.x + offset_widths[column_index].0,
                             row_area.y,
