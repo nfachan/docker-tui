@@ -252,12 +252,6 @@ impl ContainerList {
         let _ = io::stdout().flush();
     }
 
-    fn block(&self) -> Block<'static> {
-        Block::bordered()
-            .title("Containers")
-            .style(self.style.patch(self.block_style))
-    }
-
     fn handle_command(&mut self, command: Command) -> Vec<MessageOut> {
         match command {
             Command::Quit => {
@@ -456,16 +450,19 @@ struct FieldLayout {
 
 impl Widget for &mut ContainerList {
     fn render(self, area: Rect, buf: &mut Buffer) {
+        let block = Block::bordered()
+            .title("Containers")
+            .style(self.style.patch(self.block_style));
+
         if self.containers.is_empty() {
             // Handle special case of no containers.
             Paragraph::new("no containers")
-                .block(self.block())
+                .block(block)
                 .render(area, buf);
             self.click_map = None;
             return;
         }
 
-        let block = self.block();
         let list_area = block.inner(area);
         self.click_map = Some(list_area);
         self.viewport
