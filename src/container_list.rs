@@ -481,7 +481,12 @@ struct FieldLayout {
 impl Widget for &mut ContainerList {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let block = Block::bordered()
-            .title("Containers")
+            .title(if self.all_containers {
+                "All Containers"
+            } else {
+                "Running Containers"
+            })
+            .title_alignment(Alignment::Center)
             .style(self.style.patch(self.block_style));
 
         if self.containers.is_empty() {
