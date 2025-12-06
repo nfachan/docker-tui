@@ -19,7 +19,7 @@ mod viewport;
 #[derive(Debug)]
 pub enum Event {
     Input(Result<input::Event>),
-    Docker(docker::MessageOut),
+    FromDocker(docker::MessageOut),
 }
 
 fn main_loop(docker: Docker, mut terminal: Terminal<impl Backend>) -> Result<()> {
@@ -29,7 +29,7 @@ fn main_loop(docker: Docker, mut terminal: Terminal<impl Backend>) -> Result<()>
 
     // Spawn the docker thread.
     let sender_clone = sender.clone();
-    thread::spawn(move || docker::main(docker, docker_receiver, sender_clone, Event::Docker));
+    thread::spawn(move || docker::main(docker, docker_receiver, sender_clone, Event::FromDocker));
 
     // Spawn input event thread.
     thread::spawn(move || input::main(sender));
@@ -57,10 +57,11 @@ fn main_loop(docker: Docker, mut terminal: Terminal<impl Backend>) -> Result<()>
             )) => {
                 continue;
             }
-            Event::Docker(docker::MessageOut::GetContainers(Ok(containers))) => {
+            Event::FromDocker(docker::MessageOut::GetContainers(Ok(containers))) => {
                 container_list.handle_containers(containers);
             }
-            Event::Input(Err(err)) | Event::Docker(docker::MessageOut::GetContainers(Err(err))) => {
+            Event::Input(Err(err))
+            | Event::FromDocker(docker::MessageOut::GetContainers(Err(err))) => {
                 return Err(err);
             }
         }
