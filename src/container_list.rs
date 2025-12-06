@@ -282,6 +282,7 @@ impl ContainerList {
 
 #[derive(Clone, Copy)]
 enum ContainerField {
+    Id,
     Names,
     Status,
 }
@@ -289,6 +290,7 @@ enum ContainerField {
 impl ContainerField {
     fn format<'a>(self, container: &'a Container) -> Span<'a> {
         match self {
+            Self::Id => container.id.as_deref().unwrap_or("N/A").into(),
             Self::Names => match &container.names {
                 None => "[]".into(),
                 Some(names) => match &names
@@ -308,6 +310,7 @@ impl ContainerField {
 
 fn format_container<'a>(container: &'a Container) -> impl Iterator<Item = Span<'a>> {
     [
+        ContainerField::Id.format(container),
         ContainerField::Names.format(container),
         ContainerField::Status.format(container),
     ]
@@ -333,7 +336,7 @@ impl Widget for &mut ContainerList {
             // Render the block.
             block.render(area, buf);
 
-            let offset_widths = [(0u16, 30u16), (31u16, 30u16)];
+            let offset_widths = [(0u16, 8u16), (9u16, 39u16), (40u16, 30u16)];
 
             // Render the items.
             for (row_index, (container_index, selected)) in
