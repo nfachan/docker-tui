@@ -246,22 +246,19 @@ impl ContainerList {
     }
 
     pub fn handle_key_event(&mut self, event: KeyEvent) -> ControlFlow<()> {
-        match event.kind {
-            KeyEventKind::Press => {
-                match self
-                    .input_state_machine
-                    .input((event.code, event.modifiers))
-                {
-                    InputResult::Done(command) => self.handle_command(command),
-                    InputResult::NeedMore => ControlFlow::Continue(()),
-                    InputResult::Invalid => {
-                        print!("\x07"); // ASCII BEL to STDOUT
-                        ControlFlow::Continue(())
-                    }
+        if event.kind == KeyEventKind::Press {
+            match self
+                .input_state_machine
+                .input((event.code, event.modifiers))
+            {
+                InputResult::Done(command) => return self.handle_command(command),
+                InputResult::NeedMore => {}
+                InputResult::Invalid => {
+                    print!("\x07"); // ASCII BEL to STDOUT
                 }
             }
-            _ => ControlFlow::Continue(()),
         }
+        ControlFlow::Continue(())
     }
 
     pub fn handle_mouse_event(&mut self, event: MouseEvent) {
