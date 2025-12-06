@@ -176,6 +176,9 @@ impl Default for ContainerList {
             selected_line_style: Style::default().reversed(),
             fields: vec![
                 ContainerField::Id,
+                ContainerField::Image,
+                ContainerField::Command,
+                ContainerField::Created,
                 ContainerField::Status,
                 ContainerField::Names,
             ],
@@ -321,6 +324,9 @@ impl ContainerList {
 #[derive(Clone, Copy)]
 enum ContainerField {
     Id,
+    Image,
+    Command,
+    Created,
     Status,
     Names,
 }
@@ -329,6 +335,16 @@ impl ContainerField {
     fn format<'a>(self, container: &'a Container) -> Span<'a> {
         match self {
             Self::Id => container.id.as_deref().unwrap_or("N/A").into(),
+            Self::Image => container.image.as_deref().unwrap_or("N/A").into(),
+            Self::Command => container
+                .command
+                .as_deref()
+                .map(|command| Span::from(format!("{command:?}")))
+                .unwrap_or(Span::from("N/A")),
+            Self::Created => match &container.created {
+                None => Span::from("N/A"),
+                Some(when) => Span::from(format!("{when}")),
+            },
             Self::Status => container.status.as_deref().unwrap_or("N/A").into(),
             Self::Names => match &container.names {
                 None => "[]".into(),
