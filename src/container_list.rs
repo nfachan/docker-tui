@@ -308,6 +308,11 @@ impl ContainerField {
     }
 }
 
+struct FieldLayout {
+    x: u16,
+    width: u16,
+}
+
 impl Widget for &mut ContainerList {
     fn render(self, area: Rect, buf: &mut Buffer) {
         // We may not always get a resize event before some other event that causes a redraw.
@@ -327,7 +332,20 @@ impl Widget for &mut ContainerList {
             // Render the block.
             block.render(area, buf);
 
-            let offset_widths = [(0u16, 8u16), (9u16, 39u16), (40u16, 30u16)];
+            let field_layouts = [
+                FieldLayout {
+                    x: 0u16,
+                    width: 8u16,
+                },
+                FieldLayout {
+                    x: 9u16,
+                    width: 39u16,
+                },
+                FieldLayout {
+                    x: 40u16,
+                    width: 30u16,
+                },
+            ];
             let fields = [
                 ContainerField::Id,
                 ContainerField::Names,
@@ -354,9 +372,9 @@ impl Widget for &mut ContainerList {
                 for (column_index, field) in fields.iter().enumerate() {
                     field.format(&self.containers[container_index]).render(
                         Rect::new(
-                            row_area.x + offset_widths[column_index].0,
+                            row_area.x + field_layouts[column_index].x,
                             row_area.y,
-                            offset_widths[column_index].1,
+                            field_layouts[column_index].width,
                             row_area.height,
                         ),
                         buf,
