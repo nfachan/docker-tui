@@ -51,6 +51,7 @@ enum Command {
     ScrollSelectionToBottom,
     ToggleBlock,
     ToggleScrollbar,
+    ToggleAllContainers,
 }
 
 #[derive(Clone, Copy)]
@@ -85,6 +86,7 @@ pub struct ContainerList {
     fields: Vec<ContainerField>,
     have_block: bool,
     have_scrollbar: HaveScrollbar,
+    all_containers: bool,
 }
 
 impl ContainerList {
@@ -214,11 +216,17 @@ impl ContainerList {
                 Command::ToggleScrollbar,
             )
             .unwrap()
+            .binding(
+                [(KeyCode::Char('a'), KeyModifiers::NONE)],
+                Command::ToggleAllContainers,
+            )
+            .unwrap()
             .build();
 
         let mut next_timer_id = timer::Id::default();
         let refresh_timer = next_timer_id;
         next_timer_id += 1;
+        let all_containers = true;
 
         (
             Self {
@@ -243,9 +251,12 @@ impl ContainerList {
                 ],
                 have_block: true,
                 have_scrollbar: HaveScrollbar::IfNecesssary,
+                all_containers,
             },
             vec![
-                MessageOut::ToDocker(docker::MessageIn::GetContainers),
+                MessageOut::ToDocker(docker::MessageIn::GetContainers {
+                    all: all_containers,
+                }),
                 MessageOut::ToTimer(timer::MessageIn::Start(
                     refresh_timer,
                     Self::REFRESH_INTERVAL,
@@ -307,6 +318,12 @@ impl ContainerList {
             }
             Command::ToggleScrollbar => {
                 self.have_scrollbar = self.have_scrollbar.next();
+            }
+            Command::ToggleAllContainers => {
+                self.all_containers = !self.all_containers;
+                return vec![MessageOut::ToDocker(docker::MessageIn::GetContainers {
+                    all: self.all_containers,
+                })];
             }
         }
         vec![MessageOut::Render]
@@ -397,7 +414,9 @@ impl ContainerList {
             self.refresh_timer = self.next_timer_id;
             self.next_timer_id += 1;
             vec![
-                MessageOut::ToDocker(docker::MessageIn::GetContainers),
+                MessageOut::ToDocker(docker::MessageIn::GetContainers {
+                    all: self.all_containers,
+                }),
                 MessageOut::ToTimer(timer::MessageIn::Start(
                     self.refresh_timer,
                     Self::REFRESH_INTERVAL,

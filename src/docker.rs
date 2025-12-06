@@ -5,7 +5,7 @@ use tokio::sync::mpsc;
 pub use bollard::models::ContainerSummary as Container;
 
 pub enum MessageIn {
-    GetContainers,
+    GetContainers { all: bool },
 }
 
 #[derive(Debug)]
@@ -21,10 +21,10 @@ pub async fn main<E>(
 ) {
     while let Some(message) = receiver.recv().await {
         match message {
-            MessageIn::GetContainers => {
+            MessageIn::GetContainers { all } => {
                 let response = docker
                     .list_containers(Some(ListContainersOptions::<String> {
-                        all: true,
+                        all,
                         ..Default::default()
                     }))
                     .await
