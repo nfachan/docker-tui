@@ -176,8 +176,8 @@ impl Default for ContainerList {
             selected_line_style: Style::default().reversed(),
             fields: vec![
                 ContainerField::Id,
-                ContainerField::Names,
                 ContainerField::Status,
+                ContainerField::Names,
             ],
             field_layouts: Vec::default(),
         }
@@ -321,14 +321,15 @@ impl ContainerList {
 #[derive(Clone, Copy)]
 enum ContainerField {
     Id,
-    Names,
     Status,
+    Names,
 }
 
 impl ContainerField {
     fn format<'a>(self, container: &'a Container) -> Span<'a> {
         match self {
             Self::Id => container.id.as_deref().unwrap_or("N/A").into(),
+            Self::Status => container.status.as_deref().unwrap_or("N/A").into(),
             Self::Names => match &container.names {
                 None => "[]".into(),
                 Some(names) => match &names
@@ -341,7 +342,6 @@ impl ContainerField {
                     names => names.iter().join(", ").into(),
                 },
             },
-            Self::Status => container.status.as_deref().unwrap_or("N/A").into(),
         }
     }
 }
