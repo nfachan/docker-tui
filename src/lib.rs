@@ -98,7 +98,7 @@ impl App {
                 }
             }
             if let ControlFlow::Break(_) = self.handle_container_list_events(messages_out)? {
-                return Ok(());
+                break;
             }
         }
         Ok(())
