@@ -6,10 +6,10 @@ use crate::{
 use crossterm::event::{
     KeyCode, KeyEvent, KeyEventKind, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
 };
-use itertools::Itertools as _;
+use itertools::Itertools;
 use ratatui::{
     buffer::Buffer,
-    layout::{Margin, Position, Rect},
+    layout::{Constraint, Flex, Layout, Margin, Position, Rect},
     style::{Style, Stylize as _},
     text::Span,
     widgets::{
@@ -17,7 +17,7 @@ use ratatui::{
         Widget,
     },
 };
-use std::ops::ControlFlow;
+use std::{cmp, iter, ops::ControlFlow};
 
 #[derive(Copy, Clone)]
 enum Command {
@@ -179,20 +179,7 @@ impl Default for ContainerList {
                 ContainerField::Names,
                 ContainerField::Status,
             ],
-            field_layouts: vec![
-                FieldLayout {
-                    x: 0u16,
-                    width: 8u16,
-                },
-                FieldLayout {
-                    x: 9u16,
-                    width: 39u16,
-                },
-                FieldLayout {
-                    x: 40u16,
-                    width: 30u16,
-                },
-            ],
+            field_layouts: Vec::default(),
         }
     }
 }
@@ -290,9 +277,39 @@ impl ContainerList {
     }
 
     pub fn handle_resize(&mut self, area: Rect) {
-        let viewport_height = self.block().inner(area).height;
-        self.viewport.change_viewport_height(viewport_height.into());
+        let block = self.block();
+        let inner_area = block.inner(area);
+        self.viewport
+            .change_viewport_height(inner_area.height.into());
         self.area = area;
+
+        // We need at least one column of screen space for one container field, plus one column of
+        // spacing in between. If we have fewer screen columns, we drop container fields.
+        let width = usize::from(inner_area.width);
+        let num_fields = cmp::min(self.fields.len(), width.div_ceil(2));
+        self.field_layouts = if num_fields == 0 {
+            vec![]
+        } else {
+            Layout::horizontal(Itertools::intersperse(
+                iter::repeat_n(
+                    Constraint::Ratio(
+                        ((width - num_fields + 1) / num_fields).try_into().unwrap(),
+                        width.try_into().unwrap(),
+                    ),
+                    num_fields,
+                ),
+                Constraint::Length(1),
+            ))
+            .flex(Flex::Legacy)
+            .split(inner_area)
+            .iter()
+            .step_by(2)
+            .map(|area| FieldLayout {
+                x: area.x,
+                width: area.width,
+            })
+            .collect()
+        }
     }
 
     pub fn handle_containers(&mut self, containers: Vec<Container>) {
@@ -372,12 +389,7 @@ impl Widget for &mut ContainerList {
                 buf.set_style(row_area, row_style);
                 for (column, field) in self.field_layouts.iter().zip(self.fields.iter()) {
                     field.format(&self.containers[container_index]).render(
-                        Rect::new(
-                            row_area.x + column.x,
-                            row_area.y,
-                            column.width,
-                            row_area.height,
-                        ),
+                        Rect::new(column.x, row_area.y, column.width, row_area.height),
                         buf,
                     );
                 }
