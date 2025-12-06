@@ -60,8 +60,8 @@ pub struct ContainerList {
     field_layouts: Vec<FieldLayout>,
 }
 
-impl Default for ContainerList {
-    fn default() -> Self {
+impl ContainerList {
+    pub fn new() -> (Self, Vec<MessageOut>) {
         let input_state_machine = Builder::default()
             .binding([(KeyCode::Char('q'), KeyModifiers::NONE)], Command::Quit)
             .unwrap()
@@ -175,29 +175,33 @@ impl Default for ContainerList {
             )
             .unwrap()
             .build();
-        Self {
-            containers: Vec::default(),
-            viewport: Viewport::default(),
-            input_state_machine,
-            area: Rect::ZERO,
-            style: Style::default().light_blue(),
-            block_style: Style::default().red(),
-            line_style: Style::default(),
-            selected_line_style: Style::default().reversed(),
-            fields: vec![
-                ContainerField::Id,
-                ContainerField::Image,
-                ContainerField::Command,
-                ContainerField::Created,
-                ContainerField::Status,
-                ContainerField::Names,
+        (
+            Self {
+                containers: Vec::default(),
+                viewport: Viewport::default(),
+                input_state_machine,
+                area: Rect::ZERO,
+                style: Style::default().light_blue(),
+                block_style: Style::default().red(),
+                line_style: Style::default(),
+                selected_line_style: Style::default().reversed(),
+                fields: vec![
+                    ContainerField::Id,
+                    ContainerField::Image,
+                    ContainerField::Command,
+                    ContainerField::Created,
+                    ContainerField::Status,
+                    ContainerField::Names,
+                ],
+                field_layouts: Vec::default(),
+            },
+            vec![
+                MessageOut::ToDocker(docker::MessageIn::GetContainers),
+                MessageOut::Render,
             ],
-            field_layouts: Vec::default(),
-        }
+        )
     }
-}
 
-impl ContainerList {
     fn block(&self) -> Block<'static> {
         Block::bordered()
             .title("Containers")

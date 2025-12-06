@@ -30,7 +30,7 @@ struct App {
 }
 
 impl App {
-    fn new(docker: Docker, terminal: Terminal<CrosstermBackend<Stdout>>) -> Self {
+    fn new(docker: Docker, terminal: Terminal<CrosstermBackend<Stdout>>) -> Result<Self> {
         const CHANNEL_SLOTS: usize = 10;
         let (docker_sender, docker_receiver) = mpsc::unbounded_channel();
         let (sender, receiver) = mpsc::channel(CHANNEL_SLOTS);
@@ -45,14 +45,20 @@ impl App {
         thread::spawn(move || input::main(sender));
 
         // Create the ContainerList.
-        let container_list = ContainerList::default();
+        let (container_list, messages_out) = ContainerList::new();
 
-        Self {
+        let mut result = Self {
             docker_sender,
             receiver,
             container_list,
             terminal,
-        }
+        };
+
+        // Handle any of the events the ContainerList generated.
+        let control_flow = result.handle_container_list_events(messages_out)?;
+        assert!(matches!(control_flow, ControlFlow::Continue(_)));
+
+        Ok(result)
     }
 
     fn handle_container_list_events(
@@ -78,12 +84,6 @@ impl App {
     }
 
     fn main_loop(&mut self) -> Result<()> {
-        // Send an initial message to the docker thread.
-        self.docker_sender.send(docker::MessageIn::GetContainers)?;
-
-        self.terminal
-            .draw(|frame| frame.render_widget(&mut self.container_list, frame.area()))?;
-
         while let Some(event) = self.receiver.blocking_recv() {
             let mut messages_out = vec![];
             match event {
@@ -121,7 +121,7 @@ fn main_start_up(docker: Docker) -> Result<()> {
     execute!(stdout, cursor::Hide)?;
     execute!(stdout, event::EnableMouseCapture)?;
 
-    App::new(docker, Terminal::new(CrosstermBackend::new(stdout))?).main_loop()
+    App::new(docker, Terminal::new(CrosstermBackend::new(stdout))?)?.main_loop()
 }
 
 fn main_clean_up() -> Result<()> {
