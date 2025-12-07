@@ -30,15 +30,10 @@ async fn main_inner<E>(
     while let Some(message) = receiver.recv().await {
         match message {
             MessageIn::GetContainers => {
-                if sender
-                    .send(sender_processor(
-                        fetch_containers(&docker)
-                            .await
-                            .map(MessageOut::GetContainers),
-                    ))
+                let response = fetch_containers(&docker)
                     .await
-                    .is_err()
-                {
+                    .map(MessageOut::GetContainers);
+                if sender.send(sender_processor(response)).await.is_err() {
                     break;
                 }
             }
