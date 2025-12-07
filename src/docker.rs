@@ -21,7 +21,7 @@ async fn fetch_containers(docker: &Docker) -> Result<Vec<Container>> {
     docker.list_containers(options).await.map_err(Error::from)
 }
 
-async fn docker_event_main_inner<E>(
+async fn main_inner<E>(
     docker: Docker,
     mut receiver: mpsc::UnboundedReceiver<MessageIn>,
     sender: mpsc::Sender<E>,
@@ -56,13 +56,7 @@ pub fn main<E: Send + 'static>(
         .enable_all()
         .build()?
         .block_on(async move {
-            task::spawn(docker_event_main_inner(
-                docker,
-                receiver,
-                sender,
-                sender_processor,
-            ))
-            .await
+            task::spawn(main_inner(docker, receiver, sender, sender_processor)).await
         })
         .map_err(Report::from)
 }
