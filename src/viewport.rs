@@ -72,11 +72,9 @@ impl Viewport {
 
     pub fn move_selection_down_one_line(&mut self) {
         self.selection = cmp::min(self.num_containers.saturating_sub(1), self.selection + 1);
-        if self.height == 0 {
-            self.top = self.selection;
-        } else if self.selection >= self.top + self.height {
-            self.top += 1;
-        }
+        self.top += self
+            .selection
+            .saturating_sub(self.top + cmp::max(self.height, 1) - 1);
         self.validate();
     }
 
@@ -88,7 +86,9 @@ impl Viewport {
 
     pub fn move_selection_to_last_line(&mut self) {
         self.selection = self.num_containers.saturating_sub(1);
-        self.top = (self.selection + 1).saturating_sub(cmp::max(self.height, 1));
+        self.top += self
+            .selection
+            .saturating_sub(self.top + cmp::max(self.height, 1) - 1);
         self.validate();
     }
 
