@@ -64,9 +64,7 @@ impl Viewport {
 
     pub fn move_selection_up_one_line(&mut self) {
         self.selection = self.selection.saturating_sub(1);
-        if self.top > self.selection {
-            self.top -= 1;
-        }
+        self.top -= self.top.saturating_sub(self.selection);
         self.validate();
     }
 
