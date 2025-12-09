@@ -427,94 +427,95 @@ struct FieldLayout {
 
 impl Widget for &mut ContainerList {
     fn render(self, area: Rect, buf: &mut Buffer) {
+        if self.containers.is_empty() {
+            // Handle special case of no containers.
+            Paragraph::new("no containers")
+                .block(self.block())
+                .render(area, buf);
+            return;
+        }
+
         let block = self.block();
         let inner_area = block.inner(area);
         self.viewport
             .change_viewport_height(inner_area.height.into());
         self.area = area;
 
-        if self.containers.is_empty() {
-            // Handle special case of no containers.
-            Paragraph::new("no containers")
-                .block(block)
-                .render(area, buf);
+        let inner_area = block.inner(area);
+
+        // We need at least one column of screen space for one container field, plus one column of
+        // spacing in between. If we have fewer screen columns, we drop container fields.
+        let width = usize::from(inner_area.width);
+        let num_fields = cmp::min(self.fields.len(), width.div_ceil(2));
+        let field_layouts = if num_fields == 0 {
+            vec![]
         } else {
-            let inner_area = block.inner(area);
-
-            // We need at least one column of screen space for one container field, plus one column of
-            // spacing in between. If we have fewer screen columns, we drop container fields.
-            let width = usize::from(inner_area.width);
-            let num_fields = cmp::min(self.fields.len(), width.div_ceil(2));
-            let field_layouts = if num_fields == 0 {
-                vec![]
-            } else {
-                Layout::horizontal(Itertools::intersperse(
-                    iter::repeat_n(
-                        Constraint::Ratio(
-                            ((width - num_fields + 1) / num_fields).try_into().unwrap(),
-                            width.try_into().unwrap(),
-                        ),
-                        num_fields,
+            Layout::horizontal(Itertools::intersperse(
+                iter::repeat_n(
+                    Constraint::Ratio(
+                        ((width - num_fields + 1) / num_fields).try_into().unwrap(),
+                        width.try_into().unwrap(),
                     ),
-                    Constraint::Length(1),
-                ))
-                .flex(Flex::Legacy)
-                .split(inner_area)
-                .iter()
-                .step_by(2)
-                .map(|area| FieldLayout {
-                    x: area.x,
-                    width: area.width,
-                })
-                .collect()
-            };
+                    num_fields,
+                ),
+                Constraint::Length(1),
+            ))
+            .flex(Flex::Legacy)
+            .split(inner_area)
+            .iter()
+            .step_by(2)
+            .map(|area| FieldLayout {
+                x: area.x,
+                width: area.width,
+            })
+            .collect()
+        };
 
-            // Render the block.
-            block.render(area, buf);
+        // Render the block.
+        block.render(area, buf);
 
-            // Render the items.
-            for (row_index, (container_index, selected)) in
-                self.viewport.select_for_render().enumerate()
-            {
-                let row_area = Rect::new(
-                    inner_area.x,
-                    inner_area
-                        .y
-                        .saturating_add(row_index.try_into().unwrap_or(u16::MAX)),
-                    inner_area.width,
-                    1,
+        // Render the items.
+        for (row_index, (container_index, selected)) in
+            self.viewport.select_for_render().enumerate()
+        {
+            let row_area = Rect::new(
+                inner_area.x,
+                inner_area
+                    .y
+                    .saturating_add(row_index.try_into().unwrap_or(u16::MAX)),
+                inner_area.width,
+                1,
+            );
+            let mut row_style = self.style.patch(self.line_style);
+            if selected {
+                row_style = row_style.patch(self.selected_line_style)
+            }
+            buf.set_style(row_area, row_style);
+            for (column, field) in field_layouts.iter().zip(self.fields.iter()) {
+                field.format(&self.containers[container_index]).render(
+                    Rect::new(column.x, row_area.y, column.width, row_area.height),
+                    buf,
                 );
-                let mut row_style = self.style.patch(self.line_style);
-                if selected {
-                    row_style = row_style.patch(self.selected_line_style)
-                }
-                buf.set_style(row_area, row_style);
-                for (column, field) in field_layouts.iter().zip(self.fields.iter()) {
-                    field.format(&self.containers[container_index]).render(
-                        Rect::new(column.x, row_area.y, column.width, row_area.height),
-                        buf,
-                    );
-                }
             }
+        }
 
-            // Possibly render a scrollbar.
-            if let Some(scrollbar_parameters) = self.viewport.scrollbar() {
-                Scrollbar::new(ScrollbarOrientation::VerticalRight)
-                    .style(self.style.patch(self.block_style))
-                    .begin_symbol(None)
-                    .end_symbol(None)
-                    .track_symbol(None)
-                    .render(
-                        area.inner(Margin {
-                            vertical: 1,
-                            horizontal: 0,
-                        }),
-                        buf,
-                        &mut ScrollbarState::default()
-                            .content_length(scrollbar_parameters.total_items)
-                            .position(scrollbar_parameters.top_item),
-                    );
-            }
+        // Possibly render a scrollbar.
+        if let Some(scrollbar_parameters) = self.viewport.scrollbar() {
+            Scrollbar::new(ScrollbarOrientation::VerticalRight)
+                .style(self.style.patch(self.block_style))
+                .begin_symbol(None)
+                .end_symbol(None)
+                .track_symbol(None)
+                .render(
+                    area.inner(Margin {
+                        vertical: 1,
+                        horizontal: 0,
+                    }),
+                    buf,
+                    &mut ScrollbarState::default()
+                        .content_length(scrollbar_parameters.total_items)
+                        .position(scrollbar_parameters.top_item),
+                );
         }
     }
 }
