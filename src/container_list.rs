@@ -427,6 +427,8 @@ struct FieldLayout {
 
 impl Widget for &mut ContainerList {
     fn render(self, area: Rect, buf: &mut Buffer) {
+        self.area = area;
+
         if self.containers.is_empty() {
             // Handle special case of no containers.
             Paragraph::new("no containers")
@@ -439,7 +441,6 @@ impl Widget for &mut ContainerList {
         let list_area = block.inner(area);
         self.viewport
             .change_viewport_height(list_area.height.into());
-        self.area = area;
 
         // We need at least one column of screen space for one container field, plus one column of
         // spacing in between. If we have fewer screen columns, we drop container fields.
