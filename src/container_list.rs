@@ -10,7 +10,7 @@ use crossterm::event::{
 use itertools::Itertools;
 use ratatui::{
     buffer::Buffer,
-    layout::{Constraint, Flex, Layout, Margin, Position, Rect},
+    layout::{Alignment, Constraint, Flex, Layout, Margin, Position, Rect},
     style::{Style, Stylize as _},
     text::Span,
     widgets::{
@@ -486,7 +486,9 @@ impl Widget for &mut ContainerList {
 
         if self.containers.is_empty() {
             // Handle special case of no containers.
-            let mut paragraph = Paragraph::new("no containers");
+            let mut paragraph = Paragraph::new("[no containers to show]")
+                .alignment(Alignment::Center)
+                .style(self.style);
             if self.have_block {
                 paragraph = paragraph.block(block);
             }
