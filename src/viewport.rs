@@ -30,7 +30,10 @@ impl Viewport {
             assert_eq!(self.top, 0);
         } else {
             assert!(self.selection < self.num_containers);
-            assert!(self.top + cmp::max(self.height, 1) <= self.num_containers || self.top == 0);
+            assert!(
+                self.top + cmp::max(self.height, 1) <= self.num_containers || self.top == 0,
+                "viewport extends past end: self = {self:?}"
+            );
             assert!(self.top <= self.selection);
             assert!(self.selection < self.top + cmp::max(self.height, 1));
         }
@@ -168,10 +171,16 @@ impl Viewport {
         num_containers: usize,
         new_selection: Option<usize>,
     ) {
-        assert!(new_selection.is_none());
-
         self.num_containers = num_containers;
-        self.selection = cmp::min(self.selection, num_containers.saturating_sub(1));
+
+        // Adjust the selection according to the input.
+        self.selection = match new_selection {
+            Some(new_selection) => {
+                assert!(new_selection < self.num_containers);
+                new_selection
+            }
+            None => cmp::min(self.selection, self.num_containers.saturating_sub(1)),
+        };
 
         // If the selection is now above the top, move the viewport up to include selection.
         self.top -= self.top.saturating_sub(self.selection);
@@ -1460,24 +1469,42 @@ mod tests {
     #[case(viewport!(0, 0, 0, 2), 0, None, viewport!(0, 0, 0, 2))]
     // Zero containers to one container.
     #[case(viewport!(0, 0, 0, 0), 1, None, viewport!(1, 0, 0, 0))]
+    #[case(viewport!(0, 0, 0, 0), 1, Some(0), viewport!(1, 0, 0, 0))]
     #[case(viewport!(0, 0, 0, 1), 1, None, viewport!(1, 0, 0, 1))]
+    #[case(viewport!(0, 0, 0, 1), 1, Some(0), viewport!(1, 0, 0, 1))]
     #[case(viewport!(0, 0, 0, 2), 1, None, viewport!(1, 0, 0, 2))]
+    #[case(viewport!(0, 0, 0, 2), 1, Some(0), viewport!(1, 0, 0, 2))]
     // Zero containers to two containers.
     #[case(viewport!(0, 0, 0, 0), 2, None, viewport!(2, 0, 0, 0))]
+    #[case(viewport!(0, 0, 0, 0), 2, Some(0), viewport!(2, 0, 0, 0))]
+    #[case(viewport!(0, 0, 0, 0), 2, Some(1), viewport!(2, 1, 1, 0))]
     #[case(viewport!(0, 0, 0, 1), 2, None, viewport!(2, 0, 0, 1))]
+    #[case(viewport!(0, 0, 0, 1), 2, Some(0), viewport!(2, 0, 0, 1))]
+    #[case(viewport!(0, 0, 0, 1), 2, Some(1), viewport!(2, 1, 1, 1))]
     #[case(viewport!(0, 0, 0, 2), 2, None, viewport!(2, 0, 0, 2))]
+    #[case(viewport!(0, 0, 0, 2), 2, Some(0), viewport!(2, 0, 0, 2))]
+    #[case(viewport!(0, 0, 0, 2), 2, Some(1), viewport!(2, 1, 0, 2))]
     // One container to zero containers.
     #[case(viewport!(1, 0, 0, 0), 0, None, viewport!(0, 0, 0, 0))]
     #[case(viewport!(1, 0, 0, 1), 0, None, viewport!(0, 0, 0, 1))]
     #[case(viewport!(1, 0, 0, 2), 0, None, viewport!(0, 0, 0, 2))]
     // One container to one container.
     #[case(viewport!(1, 0, 0, 0), 1, None, viewport!(1, 0, 0, 0))]
+    #[case(viewport!(1, 0, 0, 0), 1, Some(0), viewport!(1, 0, 0, 0))]
     #[case(viewport!(1, 0, 0, 1), 1, None, viewport!(1, 0, 0, 1))]
+    #[case(viewport!(1, 0, 0, 1), 1, Some(0), viewport!(1, 0, 0, 1))]
     #[case(viewport!(1, 0, 0, 2), 1, None, viewport!(1, 0, 0, 2))]
+    #[case(viewport!(1, 0, 0, 2), 1, Some(0), viewport!(1, 0, 0, 2))]
     // One container to two containers.
     #[case(viewport!(1, 0, 0, 0), 2, None, viewport!(2, 0, 0, 0))]
+    #[case(viewport!(1, 0, 0, 0), 2, Some(0), viewport!(2, 0, 0, 0))]
+    #[case(viewport!(1, 0, 0, 0), 2, Some(1), viewport!(2, 1, 1, 0))]
     #[case(viewport!(1, 0, 0, 1), 2, None, viewport!(2, 0, 0, 1))]
+    #[case(viewport!(1, 0, 0, 1), 2, Some(0), viewport!(2, 0, 0, 1))]
+    #[case(viewport!(1, 0, 0, 1), 2, Some(1), viewport!(2, 1, 1, 1))]
     #[case(viewport!(1, 0, 0, 2), 2, None, viewport!(2, 0, 0, 2))]
+    #[case(viewport!(1, 0, 0, 2), 2, Some(0), viewport!(2, 0, 0, 2))]
+    #[case(viewport!(1, 0, 0, 2), 2, Some(1), viewport!(2, 1, 0, 2))]
     // Two containers to zero containers.
     #[case(viewport!(2, 0, 0, 0), 0, None, viewport!(0, 0, 0, 0))]
     #[case(viewport!(2, 1, 1, 0), 0, None, viewport!(0, 0, 0, 0))]
@@ -1489,30 +1516,75 @@ mod tests {
     #[case(viewport!(2, 1, 0, 3), 0, None, viewport!(0, 0, 0, 3))]
     // Two containers to one container.
     #[case(viewport!(2, 0, 0, 0), 1, None, viewport!(1, 0, 0, 0))]
+    #[case(viewport!(2, 0, 0, 0), 1, Some(0), viewport!(1, 0, 0, 0))]
     #[case(viewport!(2, 1, 1, 0), 1, None, viewport!(1, 0, 0, 0))]
+    #[case(viewport!(2, 1, 1, 0), 1, Some(0), viewport!(1, 0, 0, 0))]
     #[case(viewport!(2, 0, 0, 1), 1, None, viewport!(1, 0, 0, 1))]
+    #[case(viewport!(2, 0, 0, 1), 1, Some(0), viewport!(1, 0, 0, 1))]
     #[case(viewport!(2, 1, 1, 1), 1, None, viewport!(1, 0, 0, 1))]
+    #[case(viewport!(2, 1, 1, 1), 1, Some(0), viewport!(1, 0, 0, 1))]
     #[case(viewport!(2, 0, 0, 2), 1, None, viewport!(1, 0, 0, 2))]
+    #[case(viewport!(2, 0, 0, 2), 1, Some(0), viewport!(1, 0, 0, 2))]
     #[case(viewport!(2, 1, 0, 2), 1, None, viewport!(1, 0, 0, 2))]
+    #[case(viewport!(2, 1, 0, 2), 1, Some(0), viewport!(1, 0, 0, 2))]
     #[case(viewport!(2, 0, 0, 3), 1, None, viewport!(1, 0, 0, 3))]
+    #[case(viewport!(2, 0, 0, 3), 1, Some(0), viewport!(1, 0, 0, 3))]
     #[case(viewport!(2, 1, 0, 3), 1, None, viewport!(1, 0, 0, 3))]
+    #[case(viewport!(2, 1, 0, 3), 1, Some(0), viewport!(1, 0, 0, 3))]
     #[case(viewport!(2, 2, 0, 3), 1, None, viewport!(1, 0, 0, 3))]
+    #[case(viewport!(2, 2, 0, 3), 1, Some(0), viewport!(1, 0, 0, 3))]
     // Two containers to two containers.
     #[case(viewport!(2, 0, 0, 0), 2, None, viewport!(2, 0, 0, 0))]
+    #[case(viewport!(2, 0, 0, 0), 2, Some(0), viewport!(2, 0, 0, 0))]
+    #[case(viewport!(2, 0, 0, 0), 2, Some(1), viewport!(2, 1, 1, 0))]
     #[case(viewport!(2, 1, 1, 0), 2, None, viewport!(2, 1, 1, 0))]
+    #[case(viewport!(2, 1, 1, 0), 2, Some(0), viewport!(2, 0, 0, 0))]
+    #[case(viewport!(2, 1, 1, 0), 2, Some(1), viewport!(2, 1, 1, 0))]
     #[case(viewport!(2, 0, 0, 1), 2, None, viewport!(2, 0, 0, 1))]
+    #[case(viewport!(2, 0, 0, 1), 2, Some(0), viewport!(2, 0, 0, 1))]
+    #[case(viewport!(2, 0, 0, 1), 2, Some(1), viewport!(2, 1, 1, 1))]
     #[case(viewport!(2, 1, 1, 1), 2, None, viewport!(2, 1, 1, 1))]
+    #[case(viewport!(2, 1, 1, 1), 2, Some(0), viewport!(2, 0, 0, 1))]
+    #[case(viewport!(2, 1, 1, 1), 2, Some(1), viewport!(2, 1, 1, 1))]
     #[case(viewport!(2, 0, 0, 2), 2, None, viewport!(2, 0, 0, 2))]
+    #[case(viewport!(2, 0, 0, 2), 2, Some(0), viewport!(2, 0, 0, 2))]
+    #[case(viewport!(2, 0, 0, 2), 2, Some(1), viewport!(2, 1, 0, 2))]
     #[case(viewport!(2, 0, 0, 3), 2, None, viewport!(2, 0, 0, 3))]
+    #[case(viewport!(2, 0, 0, 3), 2, Some(0), viewport!(2, 0, 0, 3))]
+    #[case(viewport!(2, 0, 0, 3), 2, Some(1), viewport!(2, 1, 0, 3))]
     // Two containers to three containers.
     #[case(viewport!(2, 0, 0, 0), 3, None, viewport!(3, 0, 0, 0))]
+    #[case(viewport!(2, 0, 0, 0), 3, Some(0), viewport!(3, 0, 0, 0))]
+    #[case(viewport!(2, 0, 0, 0), 3, Some(1), viewport!(3, 1, 1, 0))]
+    #[case(viewport!(2, 0, 0, 0), 3, Some(2), viewport!(3, 2, 2, 0))]
     #[case(viewport!(2, 1, 1, 0), 3, None, viewport!(3, 1, 1, 0))]
+    #[case(viewport!(2, 1, 1, 0), 3, Some(0), viewport!(3, 0, 0, 0))]
+    #[case(viewport!(2, 1, 1, 0), 3, Some(1), viewport!(3, 1, 1, 0))]
+    #[case(viewport!(2, 1, 1, 0), 3, Some(2), viewport!(3, 2, 2, 0))]
     #[case(viewport!(2, 0, 0, 1), 3, None, viewport!(3, 0, 0, 1))]
+    #[case(viewport!(2, 0, 0, 1), 3, Some(0), viewport!(3, 0, 0, 1))]
+    #[case(viewport!(2, 0, 0, 1), 3, Some(1), viewport!(3, 1, 1, 1))]
+    #[case(viewport!(2, 0, 0, 1), 3, Some(2), viewport!(3, 2, 2, 1))]
     #[case(viewport!(2, 1, 1, 1), 3, None, viewport!(3, 1, 1, 1))]
+    #[case(viewport!(2, 1, 1, 1), 3, Some(0), viewport!(3, 0, 0, 1))]
+    #[case(viewport!(2, 1, 1, 1), 3, Some(1), viewport!(3, 1, 1, 1))]
+    #[case(viewport!(2, 1, 1, 1), 3, Some(2), viewport!(3, 2, 2, 1))]
     #[case(viewport!(2, 0, 0, 2), 3, None, viewport!(3, 0, 0, 2))]
+    #[case(viewport!(2, 0, 0, 2), 3, Some(0), viewport!(3, 0, 0, 2))]
+    #[case(viewport!(2, 0, 0, 2), 3, Some(1), viewport!(3, 1, 0, 2))]
+    #[case(viewport!(2, 0, 0, 2), 3, Some(2), viewport!(3, 2, 1, 2))]
     #[case(viewport!(2, 1, 0, 2), 3, None, viewport!(3, 1, 0, 2))]
+    #[case(viewport!(2, 1, 0, 2), 3, Some(0), viewport!(3, 0, 0, 2))]
+    #[case(viewport!(2, 1, 0, 2), 3, Some(1), viewport!(3, 1, 0, 2))]
+    #[case(viewport!(2, 1, 0, 2), 3, Some(2), viewport!(3, 2, 1, 2))]
     #[case(viewport!(2, 0, 0, 3), 3, None, viewport!(3, 0, 0, 3))]
+    #[case(viewport!(2, 0, 0, 3), 3, Some(0), viewport!(3, 0, 0, 3))]
+    #[case(viewport!(2, 0, 0, 3), 3, Some(1), viewport!(3, 1, 0, 3))]
+    #[case(viewport!(2, 0, 0, 3), 3, Some(2), viewport!(3, 2, 0, 3))]
     #[case(viewport!(2, 1, 0, 3), 3, None, viewport!(3, 1, 0, 3))]
+    #[case(viewport!(2, 1, 0, 3), 3, Some(0), viewport!(3, 0, 0, 3))]
+    #[case(viewport!(2, 1, 0, 3), 3, Some(1), viewport!(3, 1, 0, 3))]
+    #[case(viewport!(2, 1, 0, 3), 3, Some(2), viewport!(3, 2, 0, 3))]
     // Three containers to zero containers.
     #[case(viewport!(3, 0, 0, 0), 0, None, viewport!(0, 0, 0, 0))]
     #[case(viewport!(3, 1, 1, 0), 0, None, viewport!(0, 0, 0, 0))]
@@ -1529,32 +1601,72 @@ mod tests {
     #[case(viewport!(3, 2, 0, 3), 0, None, viewport!(0, 0, 0, 3))]
     // Three containers to one container.
     #[case(viewport!(3, 0, 0, 0), 1, None, viewport!(1, 0, 0, 0))]
+    #[case(viewport!(3, 0, 0, 0), 1, Some(0), viewport!(1, 0, 0, 0))]
     #[case(viewport!(3, 1, 1, 0), 1, None, viewport!(1, 0, 0, 0))]
+    #[case(viewport!(3, 1, 1, 0), 1, Some(0), viewport!(1, 0, 0, 0))]
     #[case(viewport!(3, 2, 2, 0), 1, None, viewport!(1, 0, 0, 0))]
+    #[case(viewport!(3, 2, 2, 0), 1, Some(0), viewport!(1, 0, 0, 0))]
     #[case(viewport!(3, 0, 0, 1), 1, None, viewport!(1, 0, 0, 1))]
+    #[case(viewport!(3, 0, 0, 1), 1, Some(0), viewport!(1, 0, 0, 1))]
     #[case(viewport!(3, 1, 1, 1), 1, None, viewport!(1, 0, 0, 1))]
+    #[case(viewport!(3, 1, 1, 1), 1, Some(0), viewport!(1, 0, 0, 1))]
     #[case(viewport!(3, 2, 2, 1), 1, None, viewport!(1, 0, 0, 1))]
+    #[case(viewport!(3, 2, 2, 1), 1, Some(0), viewport!(1, 0, 0, 1))]
     #[case(viewport!(3, 0, 0, 2), 1, None, viewport!(1, 0, 0, 2))]
+    #[case(viewport!(3, 0, 0, 2), 1, Some(0), viewport!(1, 0, 0, 2))]
     #[case(viewport!(3, 1, 0, 2), 1, None, viewport!(1, 0, 0, 2))]
+    #[case(viewport!(3, 1, 0, 2), 1, Some(0), viewport!(1, 0, 0, 2))]
     #[case(viewport!(3, 1, 1, 2), 1, None, viewport!(1, 0, 0, 2))]
+    #[case(viewport!(3, 1, 1, 2), 1, Some(0), viewport!(1, 0, 0, 2))]
     #[case(viewport!(3, 2, 1, 2), 1, None, viewport!(1, 0, 0, 2))]
+    #[case(viewport!(3, 2, 1, 2), 1, Some(0), viewport!(1, 0, 0, 2))]
     #[case(viewport!(3, 0, 0, 3), 1, None, viewport!(1, 0, 0, 3))]
+    #[case(viewport!(3, 0, 0, 3), 1, Some(0), viewport!(1, 0, 0, 3))]
     #[case(viewport!(3, 1, 0, 3), 1, None, viewport!(1, 0, 0, 3))]
+    #[case(viewport!(3, 1, 0, 3), 1, Some(0), viewport!(1, 0, 0, 3))]
     #[case(viewport!(3, 2, 0, 3), 1, None, viewport!(1, 0, 0, 3))]
+    #[case(viewport!(3, 2, 0, 3), 1, Some(0), viewport!(1, 0, 0, 3))]
     // Three containers to two containers.
     #[case(viewport!(3, 0, 0, 0), 2, None, viewport!(2, 0, 0, 0))]
+    #[case(viewport!(3, 0, 0, 0), 2, Some(0), viewport!(2, 0, 0, 0))]
+    #[case(viewport!(3, 0, 0, 0), 2, Some(1), viewport!(2, 1, 1, 0))]
     #[case(viewport!(3, 1, 1, 0), 2, None, viewport!(2, 1, 1, 0))]
+    #[case(viewport!(3, 1, 1, 0), 2, Some(0), viewport!(2, 0, 0, 0))]
+    #[case(viewport!(3, 1, 1, 0), 2, Some(1), viewport!(2, 1, 1, 0))]
     #[case(viewport!(3, 2, 2, 0), 2, None, viewport!(2, 1, 1, 0))]
+    #[case(viewport!(3, 2, 2, 0), 2, Some(0), viewport!(2, 0, 0, 0))]
+    #[case(viewport!(3, 2, 2, 0), 2, Some(1), viewport!(2, 1, 1, 0))]
     #[case(viewport!(3, 0, 0, 1), 2, None, viewport!(2, 0, 0, 1))]
+    #[case(viewport!(3, 0, 0, 1), 2, Some(0), viewport!(2, 0, 0, 1))]
+    #[case(viewport!(3, 0, 0, 1), 2, Some(1), viewport!(2, 1, 1, 1))]
     #[case(viewport!(3, 1, 1, 1), 2, None, viewport!(2, 1, 1, 1))]
+    #[case(viewport!(3, 1, 1, 1), 2, Some(0), viewport!(2, 0, 0, 1))]
+    #[case(viewport!(3, 1, 1, 1), 2, Some(1), viewport!(2, 1, 1, 1))]
     #[case(viewport!(3, 2, 2, 1), 2, None, viewport!(2, 1, 1, 1))]
+    #[case(viewport!(3, 2, 2, 1), 2, Some(0), viewport!(2, 0, 0, 1))]
+    #[case(viewport!(3, 2, 2, 1), 2, Some(1), viewport!(2, 1, 1, 1))]
     #[case(viewport!(3, 0, 0, 2), 2, None, viewport!(2, 0, 0, 2))]
+    #[case(viewport!(3, 0, 0, 2), 2, Some(0), viewport!(2, 0, 0, 2))]
+    #[case(viewport!(3, 0, 0, 2), 2, Some(1), viewport!(2, 1, 0, 2))]
     #[case(viewport!(3, 1, 0, 2), 2, None, viewport!(2, 1, 0, 2))]
+    #[case(viewport!(3, 1, 0, 2), 2, Some(0), viewport!(2, 0, 0, 2))]
+    #[case(viewport!(3, 1, 0, 2), 2, Some(1), viewport!(2, 1, 0, 2))]
     #[case(viewport!(3, 1, 1, 2), 2, None, viewport!(2, 1, 0, 2))]
     #[case(viewport!(3, 2, 1, 2), 2, None, viewport!(2, 1, 0, 2))]
+    #[case(viewport!(3, 1, 1, 2), 2, Some(0), viewport!(2, 0, 0, 2))]
+    #[case(viewport!(3, 1, 1, 2), 2, Some(1), viewport!(2, 1, 0, 2))]
+    #[case(viewport!(3, 2, 1, 2), 2, None, viewport!(2, 1, 0, 2))]
+    #[case(viewport!(3, 2, 1, 2), 2, Some(0), viewport!(2, 0, 0, 2))]
+    #[case(viewport!(3, 2, 1, 2), 2, Some(1), viewport!(2, 1, 0, 2))]
     #[case(viewport!(3, 0, 0, 3), 2, None, viewport!(2, 0, 0, 3))]
+    #[case(viewport!(3, 0, 0, 3), 2, Some(0), viewport!(2, 0, 0, 3))]
+    #[case(viewport!(3, 0, 0, 3), 2, Some(1), viewport!(2, 1, 0, 3))]
     #[case(viewport!(3, 1, 0, 3), 2, None, viewport!(2, 1, 0, 3))]
+    #[case(viewport!(3, 1, 0, 3), 2, Some(0), viewport!(2, 0, 0, 3))]
+    #[case(viewport!(3, 1, 0, 3), 2, Some(1), viewport!(2, 1, 0, 3))]
     #[case(viewport!(3, 2, 0, 3), 2, None, viewport!(2, 1, 0, 3))]
+    #[case(viewport!(3, 2, 0, 3), 2, Some(0), viewport!(2, 0, 0, 3))]
+    #[case(viewport!(3, 2, 0, 3), 2, Some(1), viewport!(2, 1, 0, 3))]
     fn change_num_containers_and_selection(
         #[case] mut before: Viewport,
         #[case] num_containers: usize,
