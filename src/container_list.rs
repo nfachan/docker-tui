@@ -396,7 +396,7 @@ impl ContainerList {
         let docker::MessageOut::GetContainers(containers) = response;
         self.containers = containers;
         self.viewport
-            .change_num_containers_and_selection(self.containers.len());
+            .change_num_containers_and_selection(self.containers.len(), None);
         vec![MessageOut::Render]
     }
 

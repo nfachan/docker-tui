@@ -163,7 +163,13 @@ impl Viewport {
         self.validate();
     }
 
-    pub fn change_num_containers_and_selection(&mut self, num_containers: usize) {
+    pub fn change_num_containers_and_selection(
+        &mut self,
+        num_containers: usize,
+        new_selection: Option<usize>,
+    ) {
+        assert!(new_selection.is_none());
+
         self.num_containers = num_containers;
         self.selection = cmp::min(self.selection, num_containers.saturating_sub(1));
 
@@ -1554,7 +1560,7 @@ mod tests {
         #[case] num_containers: usize,
         #[case] after: Viewport,
     ) {
-        before.change_num_containers_and_selection(num_containers);
+        before.change_num_containers_and_selection(num_containers, None);
         assert_eq!(before, after);
     }
 
