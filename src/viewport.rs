@@ -40,6 +40,10 @@ impl Viewport {
         assert!(self.is_valid());
     }
 
+    pub fn selection(&self) -> Option<usize> {
+        (self.num_containers != 0).then_some(self.selection)
+    }
+
     pub fn scrollbar(&self) -> Option<ScrollbarParameters> {
         (self.top != 0 || cmp::max(self.height, 1) < self.num_containers).then(|| {
             assert!(self.num_containers + 1 > cmp::max(self.height, 1));

@@ -394,9 +394,18 @@ impl ContainerList {
 
     pub fn handle_docker_response(&mut self, response: docker::MessageOut) -> Vec<MessageOut> {
         let docker::MessageOut::GetContainers(containers) = response;
+        let new_selection = self
+            .viewport
+            .selection()
+            .and_then(|selection| self.containers[selection].id.clone())
+            .and_then(|id| {
+                containers
+                    .iter()
+                    .position(|container| container.id.as_ref() == Some(&id))
+            });
         self.containers = containers;
         self.viewport
-            .change_num_containers_and_selection(self.containers.len(), None);
+            .change_num_containers_and_selection(self.containers.len(), new_selection);
         vec![MessageOut::Render]
     }
 
