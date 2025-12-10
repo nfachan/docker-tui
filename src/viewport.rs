@@ -165,22 +165,21 @@ impl Viewport {
 
     pub fn change_num_containers(&mut self, num_containers: usize) {
         self.num_containers = num_containers;
+        self.selection = cmp::min(self.selection, num_containers.saturating_sub(1));
 
-        if num_containers == 0 {
-            self.selection = 0;
-            self.top = 0;
-        } else {
-            if self.selection >= num_containers {
-                self.selection = num_containers - 1;
-            }
-            if self.height == 0 {
-                self.top = self.selection;
-            } else {
-                self.top = self
-                    .top
-                    .saturating_sub((self.top + self.height).saturating_sub(num_containers));
-            }
-        }
+        // If the selection is now above the top, move the viewport up to include selection.
+        self.top -= self.top.saturating_sub(self.selection);
+
+        // If the selection is now below the bottom, move the viewport down to include selection.
+        self.top += self
+            .selection
+            .saturating_sub(self.top + cmp::max(self.height, 1) - 1);
+
+        // If the viewport now extends past the end, move the viewport up to attempt to fill it.
+        self.top = self.top.saturating_sub(
+            (self.top + cmp::max(self.height, 1)).saturating_sub(self.num_containers),
+        );
+
         self.validate();
     }
 
